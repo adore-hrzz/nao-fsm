@@ -1,0 +1,361 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Welcome to NAO Finite State Machine’s documentation! &mdash; Finite State Machine 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="Finite State Machine 1.0 documentation" href="#" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="#">Finite State Machine 1.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="welcome-to-nao-finite-state-machine-s-documentation">
+<h1><strong>Welcome to NAO Finite State Machine&#8217;s documentation!</strong><a class="headerlink" href="#welcome-to-nao-finite-state-machine-s-documentation" title="Permalink to this headline">¶</a></h1>
+</div>
+<div class="section" id="state-machine">
+<h1>State machine<a class="headerlink" href="#state-machine" title="Permalink to this headline">¶</a></h1>
+<p>Module is executing object grabbing and tracking protocol with NAO robot.
+Protocol consists of several stages which is why module is suitable to be derivaded as a finite state machine.</p>
+<p>In first stage of protocol NAO has to find the object which is placed near him or in proximity.
+After that, NAO has to grab the object, do a gesture with it that corespondes the type of object, and put the object back to its place.
+Lastly, NAO has to track the object and detect whether the same gesture he did with it has been repeated or not.</p>
+<p>All states of state machine and their corespondance to protocol are described below.</p>
+<p>State machine consists of 6 states:</p>
+<blockquote>
+<div><ol class="arabic simple">
+<li><strong>Start</strong>: Initial state of FSM, this is the start point of module. In Start, all initializations are conducted: parameters from configuration file are imported, communication parameters for manipulation with NAO are defined, ect.</li>
+<li><strong>Initial</strong>: In this state NAO is set to its initial position, standing position.</li>
+<li><strong>Search</strong>: Searching for object with NAO&#8217;s camera. If object is found close to NAO, module goes to next state, if not, NAO looks for object in distance and around him, if object is found NAO moves towards it until he hits obstecale his foot bumper. If object is not found at all, module goes back to initial state.</li>
+<li><strong>Image processing</strong>: Image processing of object image taken with NAO&#8217;s camera. Image processing consist of segmentation, to exclude object from surrounding, and calculating grab point on object. If image processing goes wrong, module goes back to inital state.</li>
+<li><strong>Object manipulation</strong>: In this state all object manipulation is done. NAO grabs object, does the coresponding gesture and puts object back to it&#8217;s place.</li>
+<li><strong>Object tracking</strong>: Module is tracking object&#8217;s trajectory waiting to detect same gesture that NAO has done in previous step. After this, module goes back to initial state.</li>
+</ol>
+</div></blockquote>
+<p>Graphical representation of state machine:</p>
+<div class="figure align-center">
+<img alt="_images/Flowchart.jpeg" src="_images/Flowchart.jpeg" />
+</div>
+</div>
+<div class="section" id="module-NAO_Fsm">
+<span id="module-description"></span><h1>Module description<a class="headerlink" href="#module-NAO_Fsm" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="NAO_Fsm.Fsm">
+<em class="property">class </em><code class="descclassname">NAO_Fsm.</code><code class="descname">Fsm</code><a class="headerlink" href="#NAO_Fsm.Fsm" title="Permalink to this definition">¶</a></dt>
+<dd><p>Fsm = Finite State Machine
+State machine is defined with this class, all its states, transitions and functions.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>states</strong> &#8211; List of all FSM states.</li>
+<li><strong>transitions</strong> &#8211; <p>List of all transitions between states. Transition is defined with several arguments:</p>
+<ol class="arabic">
+<li>trigger: command that triggers transition. After transition it runs certain function.</li>
+<li>source: source state.</li>
+<li>dest: destination state.</li>
+<li>conditions: transition conditions if required</li>
+<li>after: argument that can be named before, it contains a name of
+function that will be called after transition.</li>
+</ol>
+</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Init function defines all proxies for this class and it reads data from configuration file.</p>
+<dl class="method">
+<dt id="NAO_Fsm.Fsm.Grab">
+<code class="descname">Grab</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#NAO_Fsm.Fsm.Grab" title="Permalink to this definition">¶</a></dt>
+<dd><p>Called from object_manipulation function, it runs object grabbing with NAO.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="NAO_Fsm.Fsm.identifyGrabPoint">
+<code class="descname">identifyGrabPoint</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#NAO_Fsm.Fsm.identifyGrabPoint" title="Permalink to this definition">¶</a></dt>
+<dd><p>Identifies grab point on objects image.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="NAO_Fsm.Fsm.image_process">
+<code class="descname">image_process</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#NAO_Fsm.Fsm.image_process" title="Permalink to this definition">¶</a></dt>
+<dd><p>Used for image segmentation, finding holes on object and calculating grabbing
+point. Grabbing point is identified using function &#8220;identifyGrabPoint&#8221;.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="NAO_Fsm.Fsm.initial_state">
+<code class="descname">initial_state</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#NAO_Fsm.Fsm.initial_state" title="Permalink to this definition">¶</a></dt>
+<dd><p>Puts NAO in its initial state, standing position.
+From here, Fsm goes to its next state.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="NAO_Fsm.Fsm.move_head">
+<code class="descname">move_head</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#NAO_Fsm.Fsm.move_head" title="Permalink to this definition">¶</a></dt>
+<dd><p>Moves NAO&#8217;s head depending on where NAO should search for object.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="NAO_Fsm.Fsm.move_to_object">
+<code class="descname">move_to_object</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#NAO_Fsm.Fsm.move_to_object" title="Permalink to this definition">¶</a></dt>
+<dd><p>This function is executed if object is placed far from NAO and he has to walk towards it.
+NAO is walking until he hits an obstacle with its foot number.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="NAO_Fsm.Fsm.object_detection">
+<code class="descname">object_detection</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#NAO_Fsm.Fsm.object_detection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Runs object searching using Object Tracking Module. First, NAO is searching for object near him, then, if
+object is not found, he moves his head up and search for object in distance in front of him. If the object is still
+not found, NAO moves his head right, and then left searching for object.
+If object is found, FSM goes to next state, if not, it goes back to initial state.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="NAO_Fsm.Fsm.object_manipulation">
+<code class="descname">object_manipulation</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#NAO_Fsm.Fsm.object_manipulation" title="Permalink to this definition">¶</a></dt>
+<dd><p>Responsible for all of object manipulation NAO has to do.
+This function uses data from previous state and makes NAO grab object (function Grab), do the gesture, and
+put object back to its place (function putBack).</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="NAO_Fsm.Fsm.object_tracking">
+<code class="descname">object_tracking</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#NAO_Fsm.Fsm.object_tracking" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stars object tracking that is used to detect objects trajectory and evaluate if it&#8217;s trajectory
+is similar to some of defined gestures.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="NAO_Fsm.Fsm.putBack">
+<code class="descname">putBack</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#NAO_Fsm.Fsm.putBack" title="Permalink to this definition">¶</a></dt>
+<dd><p>Called from object_manipulation function it runs the process of putting object back to its place with NAO.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="NAO_Fsm.Fsm.searching_for_object">
+<code class="descname">searching_for_object</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#NAO_Fsm.Fsm.searching_for_object" title="Permalink to this definition">¶</a></dt>
+<dd><p>Object_detection function is calling this function. It starts object tracking with Object Tracker module, and
+stops tracking if object is found.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="NAO_Fsm.ObjectTrackerModule">
+<em class="property">class </em><code class="descclassname">NAO_Fsm.</code><code class="descname">ObjectTrackerModule</code><span class="sig-paren">(</span><em>name</em>, <em>myBroker</em><span class="sig-paren">)</span><a class="headerlink" href="#NAO_Fsm.ObjectTrackerModule" title="Permalink to this definition">¶</a></dt>
+<dd><p>Class for object detection and tracking. With it&#8217;s inheritance ALModule it can use object tracking module
+that is running on NAO itself, Object Tracker.
+All it&#8217;s methods are using Object Tracker features.</p>
+<p>Init function defines proxies and gestures that can be recognized.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>myBroker</strong> &#8211; broker for communication between NAO and computer</li>
+<li><strong>name</strong> &#8211; name of ALModule</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="NAO_Fsm.ObjectTrackerModule.load">
+<code class="descname">load</code><span class="sig-paren">(</span><em>path</em>, <em>name</em><span class="sig-paren">)</span><a class="headerlink" href="#NAO_Fsm.ObjectTrackerModule.load" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads image sets of objects from NAO to tracker and defines object name.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>path</strong> &#8211; Path to image sets in NAOs memory.</li>
+<li><strong>name</strong> &#8211; Object name.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="NAO_Fsm.ObjectTrackerModule.startTracker">
+<code class="descname">startTracker</code><span class="sig-paren">(</span><em>camId</em><span class="sig-paren">)</span><a class="headerlink" href="#NAO_Fsm.ObjectTrackerModule.startTracker" title="Permalink to this definition">¶</a></dt>
+<dd><p>Starts object tracking with defined camera.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>camId</strong> &#8211; Id of NAOs camera.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="NAO_Fsm.ObjectTrackerModule.stopTracker">
+<code class="descname">stopTracker</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#NAO_Fsm.ObjectTrackerModule.stopTracker" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stops object tracking.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="NAO_Fsm.ObjectTrackerModule.unload">
+<code class="descname">unload</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#NAO_Fsm.ObjectTrackerModule.unload" title="Permalink to this definition">¶</a></dt>
+<dd><p>Removes all images, and gestures from memory, stops Object Tracker.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="how-to-use">
+<h1>How to use<a class="headerlink" href="#how-to-use" title="Permalink to this headline">¶</a></h1>
+<p>How to start the module : &#8220;python NAO_Fsm.py Config.ini&#8221;.</p>
+<p><strong>NAO_Fsm</strong> is the name of module.</p>
+<p><strong>Config.ini</strong> is a configuration file that holds parameters that need to be changed by user depending on situation requirements for specific module behavior and users preferences.
+It&#8217;s parametres are:</p>
+<blockquote>
+<div><ul class="simple">
+<li><strong>Volume</strong> - Volume of NAO&#8217;s speakers. Values in range [0, 100].</li>
+<li><strong>Mute</strong> - Values 1 (True) or 0 (False) telling the module to mute NAO or to let it say certain information or instructions.</li>
+<li><strong>Diagnostics</strong> - Values 1 (True) or 0 (False) telling the module to show or to hide diagnostic informations concerning object searching data, image processing data, object tracking data and some other.</li>
+<li><strong>Height</strong> - Height of a table that object is placed on.</li>
+<li><strong>IP</strong> - NAOs IP adress on wifi network or cable connection</li>
+<li><strong>PORT</strong> - NAOs communication port.</li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="requirements">
+<h1>Requirements<a class="headerlink" href="#requirements" title="Permalink to this headline">¶</a></h1>
+<dl class="docutils">
+<dt>List of required Python modules and libraries:</dt>
+<dd><ul class="first last simple">
+<li>naoqi - version 1.14</li>
+<li>numpy</li>
+<li>cv2</li>
+<li>configparser - parameters importing from configuration file</li>
+<li>argparser - enables argument handling when starting module from command window</li>
+<li>transition - state machine package</li>
+<li>pymorph</li>
+<li>almath</li>
+</ul>
+</dd>
+</dl>
+<p>Module is programmed in Python 2.7.</p>
+<p>Also, module reqires two modules made for image processing to be placed in same directory as this module.
+Those modules are: <strong>LinesAndPlanes.py</strong> and <strong>NaoImageProcessing.py</strong>.</p>
+</div>
+<div class="section" id="aditional-contest">
+<h1>Aditional contest<a class="headerlink" href="#aditional-contest" title="Permalink to this headline">¶</a></h1>
+<p>In order to ensure that module can work in different enviroments new image sets of object should be taken before using the module.
+This is done by running <strong>takeObjectPicture.py</strong> script which, as the name says, takes pictures of object and environment so that NAO could find object more easily.</p>
+<p>How to run the script: &#8220;python takeObjectPicture.py Config.ini&#8221;</p>
+<p>This script is using configuration file as well, the same as the FSM module, but different parameters. User must define those parameters before running the script in order to
+get the best images and segmentation.</p>
+</div>
+<div class="section" id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h1>
+<ul class="simple">
+<li><a class="reference internal" href="genindex.html"><span>Index</span></a></li>
+<li><a class="reference internal" href="search.html"><span>Search Page</span></a></li>
+</ul>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="#">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#"><strong>Welcome to NAO Finite State Machine&#8217;s documentation!</strong></a></li>
+<li><a class="reference internal" href="#state-machine">State machine</a></li>
+<li><a class="reference internal" href="#module-NAO_Fsm">Module description</a></li>
+<li><a class="reference internal" href="#how-to-use">How to use</a></li>
+<li><a class="reference internal" href="#requirements">Requirements</a></li>
+<li><a class="reference internal" href="#aditional-contest">Aditional contest</a></li>
+<li><a class="reference internal" href="#indices-and-tables">Indices and tables</a></li>
+</ul>
+
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/index.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2015, Luka Malovan.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.3</a>
+      
+      |
+      <a href="_sources/index.txt"
+          rel="nofollow">Page source</a></li>
+    </div>
+
+    
+
+    
+  </body>
+</html>
