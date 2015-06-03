@@ -265,6 +265,12 @@ class Fsm():
         if self.back_to_initial == False:
             self.search()
         else:
+            ObjectTracker.unload()
+            self.behaveproxy.stopAllBehaviors()
+            time.sleep(1.0)
+            self.postureproxy.goToPosture("StandInit",0.5)
+            self.motionproxy.killAll()
+            self.myBroker.shutdown()
             return 1
 
     def object_detection(self):
