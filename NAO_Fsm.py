@@ -551,10 +551,10 @@ class Fsm():
             beh = ObjectTracker.getWaiting(self.Nao_object)
             if beh[0] == self.behaviour:
                 behfound = True
-            if behfound:
-                self.tts.say('Ovo ye bilo supaerr')
-            self.back_to_initial = True
-            self.initial()
+        if behfound:
+            self.tts.say('Ovo ye bilo supaerr')
+        self.back_to_initial = True
+        self.initial()
 
 
     def Grab(self):
