@@ -41,12 +41,12 @@ State machine consists of 6 states:
 Graphical representation of state machine:
 
 ![Alt text](https://github.com/maloL/nao-fsm/blob/master/Flowchart.jpeg "Optional title")
-   :align:   center
+
 
 Module description
 ==================
 
-.. automodule:: NAO_Fsm
+.. automodule:: https://github.com/maloL/nao-fsm/blob/master/NAO_Fsm.py
    :members:
 
 How to use
