@@ -40,7 +40,7 @@ State machine consists of 6 states:
 
 Graphical representation of state machine:
 
-.. figure::  https://github.com/maloL/nao-fsm/blob/master/Flowchart.jpeg
+.. image::  https://github.com/maloL/nao-fsm/blob/master/Flowchart.jpeg
    :align:   center
 
 Module description
