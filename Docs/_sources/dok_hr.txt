@@ -1,0 +1,109 @@
+.. Finite State Machine documentation master file, created by Luka Malovan
+   sphinx-quickstart on Tue Mar 31 11:58:57 2015.
+   You can adapt this file completely to your liking, but it should at least
+   contain the root `toctree` directive.
+
+**NAO Finite State Machine Modul - Dokumentacija**
+========================================================
+
+Finite State Machine
+====================
+
+Modul izvršava protokol manipulaciju predmetom i praćenje predmeta s NAO robotom.
+Protokol se sastoji od nekoliko faza zbog čega je modul izveden kao automat s konačnim brojem stanja (Finite State Machine, u daljnjem teksu skraćeno pisan FSM).
+
+U prvoj fazi protokola NAO traži predmet koji se nalazi ispred njega ili u nesposrednoj blizini. 
+Nakon nalaženja predmeta NAO izvršava manipulaciju predmetom koja se sastoji od prihvaćanja predmeta, izvršavanja geste, koja odgovara vrsti
+predmeta, i vraćanje predmeta natrag na mjesto.
+Na kraju, NAO prati trajektoriju predmeta i detektira je li ponovljena gesta s predmetom.
+
+Protokol je modulu izveden preko 6 stanja FSM-a. To su:
+
+    1) **Start**: Inicijalno stanje FSM-a. U ovom stanju provodi se inicijalizacija svih varijabli, unos podataka iz konfiguracijske datoteke te inicijalizacija komunikacije s NAO-om.
+    Iz ovog stanja FSM automatski prelazi u iduće.
+
+
+    2) **Initial**: Početak protokola, NAO se postavlja u inicijalni stajaći položaj. FSM prelazi u iduće stanje.
+
+
+    3) **Search**: U ovom stanju izvršava se traženje predmeta. NAO traži predmet ispred sebe te u neposrednoj blizini. Ako predmet nije nađen, FSM se vraća u prijašnje stanje (Initial). Ako je predmet nađen FSM prelazi u iduće stanje. U slučaju da NAO treba prvo doći do predmeta, ta se radnja izvršava prije prijelaza.
+
+
+    4) **Image processing**: Obrada slike predmeta dobivena s kamere NAO-a. Obrada slike sastoji se od segmentacije slike kako bi se izdvojio predmet od okoline, detekcije rupa na predemetu i računanja točke hvatišta na predemetu. Ako obrada slike nije dobra, FSM se vraća u stanje Initial.
+
+
+    5) **Object manipulation**: U ovom stanju izvršava se manipulacija predmeta. NAO prihvati predmet, izvrši s njim odgovarajuću gestu i vrati ga natrag na mjesto.
+
+
+    6) **Object tracking**: Prati se trajektorija predmeta koja se uspoređuje s trajektorijama gesti. Modul detektira ako je ponovljena ista gesta koju je NAO izveo.
+
+Grafički prikaz FSM-a : 
+
+.. figure::  Flowchart.jpeg
+   :align:   center
+
+Opis modula
+===========
+
+.. automodule:: NAO_Fsm
+   :members:
+
+Upute za upotrebu
+=================
+
+Modul se pokreće kao i svaka druga Python skripta s tom razlikom što je prilikom poziva potrebno kao argument navesti konfiguracijsku datoteku. 
+
+Primjer pokretanja modula : "python NAO_Fsm.py Config.ini".
+
+**NAO_Fsm** je ime modula. 
+
+**Config.ini** je konfiguracijska datoteka koja sadrži parametre koje korisnik može mijenjati za određeni rad modula ovisno o situaciji u kojoj se modul primijenjuje.
+
+Parametri konfiguracijske datoteke su sljedeći:
+
+	- **Volume** - Glasnoća NAO-ovih zvučnika. Vrijednosti [0, 100]. 
+	
+	- **Mute** - Vrijednosit 1 = True i 0 = False. Parametar definira hoće li NAO davati glasovne povratne informacije ili ne.
+
+	- **Diagnostics** - Vrijednosti 1 = True, 0 = False. Parametar definira hoće li modul prikazivati dijagnostičke vrijednosti kao što su točka hvatišta, gesta koja će se izvesti i ostalo.
+	Ovim parametrom daje se korisniku na provjeru ispravnost varijabli točke hvatišta prije daljnjeg izvršavanja programa. 
+
+	- **Height** - Visina plohe na kojoj se nalazi predmet. Mjerna jedinica je metar.
+
+	- **IP** - NAO-ova IP adresa. 
+
+	- **PORT** - NAO-ov komunikacijski port. 
+
+Zahtjevi
+========
+
+Lista Python modula i biblioteka potrebnih za rad modula:
+	- naoqi - verzija 1.14
+	- numpy 
+	- cv2 
+	- configparser - učitavanje parametara iz konfiguracijske datoteke
+	- argparser - omogućava davanja argumenta modulu prilikom poziva
+	- transition - paket za automat s konačnim brojem stanja
+	- pymorph
+	- almath
+
+Modul je rađen u programskom jeziku Python 2.7.
+
+Također, modul zahtjeva dva dodatna modula za obradu slike koja se trebaju nalaziti u istom direktoriju s ovim modulom.
+Ti moduli su **LinesAndPlanes.py** i **NaoImageProcessing.py**.
+
+Dodatni sadržaj
+===============
+
+Kako bi se osiguralo da modul može ispravno raditi u okolini s različitim svjetlosnim uvjetima potrebno je unjeti novi set slika predmeta. To omogućava 
+skripta "takeObjectPicture.py" koja s kamerom NAO robota uzima slike predmeta i okoline te vrši segmentaciju. To omogućava bolji rad i lakše nalaženje predmeta unutar
+modula. 
+
+Ova skripta također koristi konfiguracijsku datoteku ali s drugačijim parametrima. Korisnik treba te parametre podesiti kako bi se dobila što bolja segmentacija predmeta.
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`search`
+

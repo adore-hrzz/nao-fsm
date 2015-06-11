@@ -1,0 +1,23 @@
+How to use
+==========
+
+Module starts like any other python script with an exception of having to give the argument upon calling it. 
+
+How to start the module : "python NAO_Fsm.py Config.ini".
+
+**NAO_Fsm** is the name of module. 
+
+**Config.ini** is a configuration file that holds parameters that need to be changed by user depending on situation requirements for specific module behavior and users preferences. 
+It's parametres are:
+
+	- **Volume** - Volume of NAO's speakers. Values in range [0, 100]. 
+	
+	- **Mute** - Values 1 (True) or 0 (False) telling the module to mute NAO or to let it say certain information or instructions.
+
+	- **Diagnostics** - Values 1 (True) or 0 (False) telling the module to show or to hide diagnostic informations concerning object searching data, image processing data, object tracking data and some other.	
+
+	- **Height** - Height of a table that object is places on. 
+
+	- **IP** - NAOs IP adress on wifi network or cable connection
+
+	- **PORT** - NAOs communication port.

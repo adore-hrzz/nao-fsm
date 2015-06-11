@@ -1,0 +1,11 @@
+Protocol
+========
+
+Protocol starts when NAO is set in initial standing position.
+
+First NAO has to find object. Object can be placed near NAO, or away from him.
+If object is placed away from NAO, NAO has to move to it.
+
+After that, NAO has to grab object, pick it up, do the gesture depending on which object he grabed and then put it back to it's place.
+
+In the end, NAO has to track object and detect whether same gesture as NAO did was repeated with object or not.
