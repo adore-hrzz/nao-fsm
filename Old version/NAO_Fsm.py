@@ -6,14 +6,6 @@ import cv2
 import NaoImageProcessing, LinesAndPlanes
 import vision_definitions
 import ConfigParser, argparse
-import imageProcessing, objectManipulation
-import random
-import gesture_recognition
-from ghmm import *
-import training
-from vision_definitions import kVGA, kBGRColorSpace
-import subprocess
-import os
 
 from transitions import Machine
 
@@ -43,11 +35,11 @@ class ObjectTrackerModule(ALModule):
         self.memProxy = ALProxy("ALMemory", myBroker)
         self.motionProxy.setStiffnesses("Head", 1.0)
         self.gestureProxy.startTracker(15, 1)
-        self.gestureProxy.addGesture("drink", [2, 6])
-        self.gestureProxy.addGesture("frogL", [1, 0, 7])
-        self.gestureProxy.addGesture("frogR", [3, 4, 5])
-        self.gestureProxy.addGesture("duckR", [4, 0])
-        self.gestureProxy.addGesture("duckL", [0, 4])
+        self.gestureProxy.addGesture("drink", [2,6])
+        self.gestureProxy.addGesture("frogL", [1,0,7])
+        self.gestureProxy.addGesture("frogR", [3,4,5])
+        self.gestureProxy.addGesture("planeR", [4,0])
+        self.gestureProxy.addGesture("planeL", [0,4])
 
     def startTracker(self, camId):
         """
@@ -57,8 +49,6 @@ class ObjectTrackerModule(ALModule):
         """
         self.gestureProxy.startTracker(15, camId)
         self.gestureProxy.focusObject(-1)
-        #    self.memProxy.subscribeToMicroEvent(name, "ObjectTracker", name, "onObjGet")
-        #    self.memProxy.subscribeToMicroEvent(name, "ObjectTracker", name, "storeData")
 
     def stopTracker(self):
         """
@@ -66,9 +56,6 @@ class ObjectTrackerModule(ALModule):
         """
         self.gestureProxy.stopTracker()
         self.gestureProxy.stopFocus()
-        #    self.memProxy.unsubscribeToMicroEvent(name, "ObjectTracker")
-        #    self.memProxy.unsubscribeToMicroEvent(name, "ObjectTracker")
-
 
     def load(self, path, name):
         """
@@ -84,7 +71,6 @@ class ObjectTrackerModule(ALModule):
         self.waiting.append(None)
         self.gestureProxy.trackObject(name, -len(self.kindNames))
         self.memProxy.subscribeToMicroEvent(name, "ObjectTracker", name, "onObjGet")
-        #    self.memProxy.subscribeToMicroEvent(name, "ObjectTracker", name, "storeData")
 
     def getIdx(self, name):
         if (name in self.kindNames):
@@ -121,8 +107,8 @@ class ObjectTrackerModule(ALModule):
             if behavior == "frog":
                 self.waiting[idx] = ["frogL", "frogR"]
             else:
-                if behavior == "duck":
-                    self.waiting[idx] = ["duckL", "duckR"]
+                if behavior == "plane":
+                    self.waiting[idx] = ["planeL", "planeR"]
                 else:
                     self.waiting[idx] = [behavior]
         else:
@@ -138,7 +124,7 @@ class ObjectTrackerModule(ALModule):
             if (value[0] != 0):
                 self.exists[id]=True
                 if (value[5]!=None):
-                    #print (value[5])
+                    print (value[5])
                     self.behaviors[id] = value[5]
                     if (self.waiting[id]!= None):
                         for tmp in self.waiting[id]:
@@ -148,7 +134,7 @@ class ObjectTrackerModule(ALModule):
             else:
                 self.exists[id]=False
                 if (value[1]!=None):
-                    #print (value[1])
+                    print (value[1])
                     self.behaviors[id] = value[1]
                     if (self.waiting[id]!= None):
                         for tmp in self.waiting[id]:
@@ -156,31 +142,19 @@ class ObjectTrackerModule(ALModule):
                                 self.waiting[id] = None
                                 break
 
-#    def storeData(self, key, value, message):
-#        if value:
-#            if value[0]:
-#                print("I see the cup")
-#                #self.log.write(str(value[3][0])+", "+str(value[3][1])+"\n") ########################################
-#                self.data = value[3]
-#            else:
-#                self.data = 0
-#                print("I don't see the cup")
-
     def unload(self):
         """
         Removes all images, and gestures from memory, stops Object Tracker.
         """
         self.gestureProxy.stopTracker()
-        #    self.memProxy.unsubscribeToMicroEvent(name, "ObjectTracker")
-        #    self.memProxy.unsubscribeToMicroEvent(name, "ObjectTracker")
         for i in range(0, len(self.exists)):
             self.gestureProxy.removeObjectKind(0)
             self.gestureProxy.removeEvent(self.kindNames[i])
         self.gestureProxy.removeGesture("drink")
         self.gestureProxy.removeGesture("frogL")
         self.gestureProxy.removeGesture("frogR")
-        self.gestureProxy.removeGesture("duckL")
-        self.gestureProxy.removeGesture("duckR")
+        self.gestureProxy.removeGesture("planeL")
+        self.gestureProxy.removeGesture("planeR")
 
 
 class Fsm():
@@ -211,9 +185,9 @@ class Fsm():
     transitions = [
         {'trigger': 'start', 'source': 'Start', 'dest': 'Initial', 'after': 'initial_state'},
         {'trigger': 'search', 'source': 'Initial', 'dest': 'Search', 'after': 'object_detection'},
-        {'trigger': 'process', 'source': ['Initial', 'Search'], 'dest': 'Image_processing', 'after': 'image_process'},
-        {'trigger': 'grab', 'source': 'Image_processing', 'dest': 'Object_manipulation', 'after': 'object_manipulation'},
-        {'trigger': 'track', 'source': ['Initial', 'Object_manipulation'], 'dest': 'Object_tracking', 'after': 'object_tracking'},
+        {'trigger': 'process', 'source': 'Search', 'dest': 'Image_processing', 'after': 'image_process'},
+        {'trigger': 'grab', 'source':'Image_processing', 'dest': 'Object_manipulation', 'after': 'object_manipulation'},
+        {'trigger': 'track', 'source': 'Object_manipulation', 'dest': 'Object_tracking', 'after': 'object_tracking'},
         {'trigger': 'initial', 'source': ['Search', 'Image_processing', 'Object_action', 'Object_tracking'], 'dest': 'Initial', 'after': 'initial_state'}
         ]
 
@@ -221,28 +195,21 @@ class Fsm():
 
     def __init__(self):
         global ObjectTracker
-        print ("Initializing program ...")
         self.robRotation = 0
+
         parser = argparse.ArgumentParser()
         parser.add_argument("config")
-        parser.add_argument("state")
         args = parser.parse_args()
         cfile = args.config
 
-        self.start_state = args.state
-
         config = ConfigParser.ConfigParser()
         config.read(cfile)
-
-        self.state_file = "fsm_state.ini"
-        self.state_config = ConfigParser.ConfigParser()
-        self.state_config.read(self.state_file)
 
         self.IP = config.get('Grab settings', 'IP')
         self.PORT = config.get('Grab settings', 'PORT')
         self.PORT = int(self.PORT)
 
-        self.objectColor = 0.0 # potreban fix !!! ######################################################################
+        self.objectColor = 0.0
         self.myBroker = ALBroker("myBroker", "0.0.0.0", 0, self.IP, self.PORT)
         self.camera=NaoImageProcessing.NaoImgGetter(self.IP, self.PORT, 1)
         self.motionproxy=ALProxy('ALMotion', self.myBroker)
@@ -254,9 +221,6 @@ class Fsm():
         self.sound = ALProxy('ALAudioDevice', self.myBroker)
         self.memory = ALProxy('ALMemory', self.myBroker)
         self.memory.insertData('ObjectGrabber', int(0))
-        self.gestureProxy = ALProxy("NAOObjectGesture", self.myBroker)
-
-        self.object_is = config.get ('Grab settings', 'Object')
 
         self.volume = config.get('Grab settings', 'Volume')
         self.volume = int(float(self.volume))
@@ -284,70 +248,30 @@ class Fsm():
         self.back_to_initial = False
         ObjectTracker = ObjectTrackerModule("ObjectTracker", self.myBroker)
 
-        self.grabPoint = 0
-        self.grab_direction = 0
-        self.grab_number = 0
-        self.Nao_object = ''
-        self.grab_pix = 0
-
-        self.alvideoproxy = ALProxy("ALVideoDevice", self.IP, self.PORT)
-        self.video = self.alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
-
-        self.camProxy = ALProxy("ALVideoDevice", self.IP, self.PORT)
-
-        print ("Initialization complete ...")
-
     def initial_state(self):
         """
         Puts NAO in its initial state, standing position.
         From here, Fsm goes to its next state.
         """
-        #print (self.machine.state)
-
-        self.state_config.set("State info", "state", "Initial")
-        self.state_config.set("State info", "grab_point_x", "0")
-        self.state_config.set("State info", "grab_point_y", "0")
-        self.state_config.set("State info", "start_tracking", "0")
-        self.state_config.set("State info", "stop_tracking", "1")
-        self.state_config.set("State info", "end", "0")
-        self.state_config.set("State info", "pix_x", "0")
-        self.state_config.set("State info", "pix_y", "0")
-
-        with open(self.state_file, 'wb') as configfile:
-            self.state_config.write(configfile)
-
-        #self.motionproxy.killAll()
+        print (self.machine.state)
         self.postureproxy.goToPosture("StandInit", 0.8)
         self.motionproxy.setAngles('HeadPitch', 0, 0.5)
         time.sleep(0.5)
         self.motionproxy.setAngles('HeadYaw', 0, 0.5)
         time.sleep(0.5)
         self.motionproxy.setStiffnesses("Head", 1.0)
-        print('NAO is in initial position')
+        print('NAO is in initial state')
 
-        if not self.back_to_initial:
-            #if not self.mute:
-            #    self.tts.say('Are you ready for some fun')
-
-            if self.start_state == 'grabbing':
-                self.Nao_object = 'Cup'
-                self.process()
-            elif self.start_state == 'tracking':
-                self.track()
-            else:
-                self.search()
+        if self.back_to_initial == False:
+            self.search()
         else:
-
-            repeat = raw_input("Repeat? : ")
-            if repeat == "all":
-                self.search()
-            elif repeat == "grabbing":
-                self.Nao_object = 'Cup'
-                self.process()
-            elif repeat == "tracking":
-                self.track()
-            else:
-                self.search()
+            ObjectTracker.unload()
+            self.behaveproxy.stopAllBehaviors()
+            time.sleep(1.0)
+            self.postureproxy.goToPosture("StandInit",0.5)
+            self.motionproxy.killAll()
+            self.myBroker.shutdown()
+            return 1
 
     def object_detection(self):
         """
@@ -357,62 +281,51 @@ class Fsm():
         If object is found, FSM goes to next state, if not, it goes back to initial state.
         """
         global ObjectTracker
-        self.state_config.set("State info", "state", "Searching")
-        with open(self.state_file, 'wb') as configfile:
-            self.state_config.write(configfile)
-        time.sleep(1)
-        #if self.object_is == 'Cup':
+        print (self.machine.state)
         ObjectTracker.load("/home/nao/ImageSets/cup", 'Cup')
-
-        #if self.object_is == 'Cup_red':
-        #    ObjectTracker.load("/home/nao/ImageSets/cup_red", 'Cup')
-        #elif self.object_is == 'Duck':
-        #    ObjectTracker.load("/home/nao/ImageSets/zvaljak", 'Duck')
-        #elif self.object_is == 'Cup_orange':
-        #    ObjectTracker.load("/home/nao/ImageSets/cup_orange", 'Cup')
-
-        #self.head_pitch = [0, 0.5]
-        #self.head_yaw = [0, 0.5]
-        #self.move_head()
-
+        ObjectTracker.load("/home/nao/ImageSets/zvaljak", 'Plane')
+        self.head_pitch = [0, 0.5]
+        self.head_yaw = [0, 0.5]
+        self.move_head()
         ObjectTracker.startTracker(1)
-
-        head_pitch_list = [[0, 0.5], [-0.2, 0.5], [-0.2, 0.5], [-0.2, 0.5]]
-        head_yaw_list = [[0, 0.5], [0, 0.5], [1, 0.5], [-1, 0.5]]
-        look_dir = ["close", "far", "right", "left"]
-        i = 0
-        for i in range(0, 4):
-            self.head_pitch = head_pitch_list[i]
-            self.head_yaw = head_yaw_list[i]
-            print("Searching for object: " + look_dir[i])
+        print('Searching for object : close')
+        self.searching_for_object()
+        if self.found == True:
+            ObjectTracker.stopTracker()
+            self.process()
+        else:
+            self.head_yaw = [0, 0.5]
+            self.head_pitch = [-0.2, 0.5]
+            print('Searching for object : far')
             self.move_head()
             self.searching_for_object()
-            if self.found:
-                self.robRotation = self.head_yaw[0]
-                time.sleep(1)
+            if self.found == True:
                 ObjectTracker.stopTracker()
-                ObjectTracker.unload()
-                self.behaveproxy.stopAllBehaviors()
-                time.sleep(1.0)
-                self.postureproxy.goToPosture("StandInit",0.5)
-                self.motionproxy.killAll()
-                #self.memory.unsubscribeToMicroEvent('Cup', "ObjectTracker")
-                self.gestureProxy.stopFocus()
-                if i == 0:
-                    self.process()
-                else:
+                self.move_to_object()
+            else:
+                self.head_yaw = [1, 0.5]
+                self.head_pitch = [-0.2, 0.5]
+                print('Searching for object : right')
+                self.move_head()
+                self.searching_for_object()
+                if self.found == True:
+                    ObjectTracker.stopTracker()
+                    self.robRotation = 1
                     self.move_to_object()
-            time.sleep(1)
-        if not self.found:
-            time.sleep(1)
-            ObjectTracker.stopTracker()
-            ObjectTracker.unload()
-            self.behaveproxy.stopAllBehaviors()
-            time.sleep(1.0)
-            self.postureproxy.goToPosture("StandInit", 0.5)
-            self.motionproxy.killAll()
-            self.back_to_initial = True
-            self.initial()
+                else:
+                    self.head_yaw = [-1, 0.5]
+                    self.head_pitch = [-0.2, 0.5]
+                    print('Searching for object : left')
+                    self.move_head()
+                    self.searching_for_object()
+                    if self.found == True:
+                        ObjectTracker.stopTracker()
+                        self.robRotation = -1
+                        self.move_to_object()
+                    else:
+                        ObjectTracker.stopTracker()
+                        self.back_to_initial = True
+                        self.initial()
 
     def searching_for_object(self):
         """
@@ -425,20 +338,16 @@ class Fsm():
         while t < timeObject:
             test_1 = ObjectTracker.getExist('Cup')
             if test_1 is not None and test_1:
-                if not self.mute:
-                    self.tts.say('I found a cup')
                 print 'Cup exists'
                 self.Nao_object = 'Cup'
                 self.found = True
                 return 1
-
-            #test_2 = ObjectTracker.getExist('Duck')
-            #if test_2 is not None and test_2:
-            #    print 'Duck exists'
-            #    self.Nao_object = 'Duck'
-            #    self.found = True
-            #    return 1
-
+            test_2 = ObjectTracker.getExist('Plane')
+            if test_2 is not None and test_2:
+                print 'Plane exists'
+                self.Nao_object = 'Plane'
+                self.found = True
+                return 1
             time.sleep(1)
             print t
             t += 1
@@ -451,8 +360,8 @@ class Fsm():
         """
         Moves NAO's head depending on where NAO should search for object.
         """
-        self.motionproxy.setAngles('HeadPitch', self.head_pitch[0], self.head_pitch[1])
-        self.motionproxy.setAngles('HeadYaw', self.head_yaw[0], self.head_yaw[1])
+        self.motionproxy.setAngles('HeadPitch',self.head_pitch[0], self.head_pitch[1])
+        self.motionproxy.setAngles('HeadYaw',self.head_yaw[0], self.head_yaw[1])
         return 1
 
     def move_to_object(self):
@@ -460,8 +369,8 @@ class Fsm():
         This function is executed if object is placed far from NAO and he has to walk towards it.
         NAO is walking until he hits an obstacle with its foot number.
         """
-        self.motionproxy.setAngles('HeadYaw', 0, 0.5)
-        self.motionproxy.setAngles('HeadPitch', 0, 0.5)
+        self.motionproxy.setAngles('HeadYaw',0,0.5)
+        self.motionproxy.setAngles('HeadPitch',0,0.5)
         self.navigationProxy.moveTo(0.0, 0.0, self.robRotation)
         time.sleep(0.5)
         self.navigationProxy.moveTo(1.0, 0.0, 0.0)
@@ -469,7 +378,7 @@ class Fsm():
         time.sleep(0.5)
         self.navigationProxy.moveTo(-0.07, 0.0, 0.0)
         time.sleep(0.5)
-        self.postureproxy.goToPosture("StandInit", 0.8)
+        self.postureproxy.goToPosture("StandInit",0.8)
         time.sleep(1)
         self.process()
 
@@ -478,10 +387,7 @@ class Fsm():
         Used for image segmentation, finding holes on object and calculating grabbing
         point. Grabbing point is identified using function "identifyGrabPoint".
         """
-        self.state_config.set("State info", "state", "Image processing")
-        with open(self.state_file, 'wb') as configfile:
-            self.state_config.write(configfile)
-
+        print (self.machine.state)
         Gesture_robot = None
         offset_x = 0.0
         offset_z = 0.0
@@ -504,11 +410,7 @@ class Fsm():
         else:
             [grabPointImage,bottomPoint,wLeft,wRight,direction,topPoint]=temp
 
-            self.state_config.set("State info", "pix_x", str(grabPointImage[0]))
-            self.state_config.set("State info", "pix_y", str(grabPointImage[1]))
-            with open(self.state_file, 'wb') as configfile:
-                self.state_config.write(configfile)
-            time.sleep(5)
+
         lineLeft = LinesAndPlanes.getLineEquation(self.motionproxy,2,wLeft[0],wLeft[1])
         tLeft = LinesAndPlanes.intersectWithPlane(lineLeft, 2, ( 0, 0, 1, -self.h))
 
@@ -575,9 +477,7 @@ class Fsm():
             else:
                 stsel = 1
             if stsel == 1:
-                self.tts.say('I see how to grab the object')
-                time.sleep(1)
-                self.grab()
+               self.grab()
             else:
                 self.back_to_initial = True
                 self.initial()
@@ -586,8 +486,8 @@ class Fsm():
             print('The object is too large to grab')
             if not self.mute:
                 self.tts.say('The object is too large to grab')
-            self.back_to_initial = True
             self.initial()
+
 
     def object_manipulation(self):
         """
@@ -595,33 +495,23 @@ class Fsm():
         This function uses data from previous state and makes NAO grab object (function Grab), do the gesture, and
         put object back to its place (function putBack).
         """
-        self.state_config.set("State info", "state", "Object manipulation")
-        with open(self.state_file, 'wb') as configfile:
-            self.state_config.write(configfile)
-
-        manipulation = objectManipulation.ManipulationClass(self.motionproxy, self.Nao_object, self.grab_number,
-                                                            self.grabPoint, self.memory, self.postureproxy,
-                                                            self.grab_direction)
+        print (self.machine.state)
         if not self.mute:
-            if self.grab_direction == 'R':
-                hand = 'right'
-            elif self.grab_direction == 'L':
-                hand = 'left'
-            saying = 'Grabbing a ' + self.Nao_object + ' with' + hand + ' hand'
+            saying = 'Grabbing a ' + self.Nao_object + ' with left hand'
             self.tts.say(saying)
     # poziv funkcije Grab kojom se vrsi kretanje do tocke hvatista te samo hvatanje
-        work = manipulation.objectAction("Grab")
-        if not work:
+        work = self.Grab()
+        if work == None:
             return None
     # ovisno o tome koji predmet je robot primio zvrsava se odgovarajuca gesta
         if self.Nao_object == 'Cup':
-            self.behaviour = 'drink' + str(self.grab_direction)
+            self.behaviour = 'drink' + self.grab_direction
         else:
-            self.behaviour = self.Nao_object.lower() + str(self.grab_direction)
+            self.behaviour = self.Nao_object.lower() + self.grab_direction
         print(self.behaviour)
 
         self.behaveproxy.runBehavior(self.behaviour)
-        if self.behaviour == 'drink' + str(self.grab_direction):
+        if self.behaviour == 'drink' + self.grab_direction:
             self.behaviour = 'drink'
         self.Gesture_robot = self.Nao_object
 
@@ -630,70 +520,220 @@ class Fsm():
             manual_break = 1
             return None
         # nakon izvodenja geste robot predmet vraca natrag na mjesto
-        #if not self.mute:
-        #    self.tts.say('I have to put the object back')
-        work = manipulation.objectAction("putBack")
-        if not work:
+        work = self.putBack()
+        if work == None:
             return None
-        else:
-            self.track()
+        self.track()
 
     def object_tracking(self):
         """
         Stars object tracking that is used to detect objects trajectory and evaluate if it's trajectory
         is similar to some of defined gestures.
         """
-        #############################################
-        #self.gestureProxy.stopFocus()
-        ##############################################3
-        #global ObjectTracker
-        #self.alvideoproxy.unsubscribe(self.video)
-        #cv2.destroyAllWindows()
-        #self.shutdown()
-        #ObjectTracker = None
-        time.sleep(1)
-        self.postureproxy.goToPosture("StandInit", 0.5)
-        self.motionproxy.killAll()
-        self.state_config.read(self.state_file)
-        self.state_config.set("State info", "state", "Object tracking")
-        self.state_config.set("State info", "start_tracking", "1")
-        self.state_config.set("State info", "stop_tracking", "0")
-        self.state_config.set("State info", "end", "0")
-        with open(self.state_file, 'wb') as configfile:
-            self.state_config.write(configfile)
-
-        print ("starting gesture recognition")
-
-        wait = True
-
-        while not wait:
-            self.state_config.read(self.state_file)
-            if self.state_config.has_section("State info"):
-                status = self.state_config.get("State info", "stop_tracking")
-                #print status
-                if status == "True":
-                    wait = False
-        self.state_config.read(self.state_file)
-
-        #print ("ending gesture recognition")
-
-        #full_path = os.path.abspath('recognition.py')
-        #subprocess.call("recognition.py")
-        #os.system('pwd')
-        #self.myBroker = ALBroker("myBroker", "0.0.0.0", 0, self.IP, self.PORT)
-
-        time.sleep(2)
-
-        os.system('python recognition_temp.py Config.ini')
-
-        time.sleep(2)
-        self.myBroker = ALBroker("myBroker", "0.0.0.0", 0, self.IP, self.PORT)
+        global ObjectTracker
+        self.behaveproxy.runBehavior('asadati')
+        print (self.machine.state)
+        print('Starting behavior tracking')
+        time.sleep(1.0)
+        behfound = False
+        maxtime = 20
+        t = 0
+        ObjectTracker.startTracker(0)
+        ObjectTracker.waitForBehavior(self.Nao_object, self.behaviour)
+    # pracenje predmeta se izvodi odredeni vremenski period maxtime
+        while (not behfound) and (t < maxtime):
+            print('Waiting for behavior')
+            test = self.memory.getData('ObjectGrabber')
+            if test:
+                break
+            time.sleep(1)
+            t += 1
+            beh = ObjectTracker.getWaiting(self.Nao_object)
+            if beh[0] == self.behaviour:
+                behfound = True
+        if behfound:
+            self.tts.say('Ovo ye bilo supaerr')
         self.back_to_initial = True
         self.initial()
 
+
+    def Grab(self):
+        """
+        Called from object_manipulation function, it runs object grabbing with NAO.
+        """
+        rotControl = True
+        if rotControl:
+            mask = 15
+        else:
+            mask = 7
+
+        xOffset_app = 0.0
+        xOffset_lift = 0.0
+        xOffset_grab = 0.0
+        sideOffset_app = 0.0
+        sideOffset_grab = 0.0
+        sideOffset_lift = 0.0
+        heightOffset_app = 0.0
+        heightOffset_grab = 0.0
+        heightOffset_lift = 0.0
+
+        safeUp=[0.1, self.grab_number * 0.20, 0.41, 0, 0, 0]
+        beh_pose = [0.15, self.grab_number * 0.15, 0.41, 0, 0, 0]
+
+        hand = self.grab_direction + 'Hand'
+        arm = self.grab_direction + 'Arm'
+
+        chainName=arm
+        handName=hand
+        self.motionproxy.setStiffnesses(arm,1.0)
+        #motionProxy.setStiffnesses("RArm",0.0)
+        self.motionproxy.setAngles(hand,1.0,0.4)
+
+        if self.Nao_object == 'Cup':
+            sideOffset_app= self.grab_number * 0.04
+            rotation= (-1) * self.grab_number * 1.57
+            heightOffset_lift = 0.05
+            xOffset_lift =0.02
+            xOffset_grab = 0.02
+            heightOffset_grab = 0.0
+            heightOffset_app = 0.0
+        else:
+            if self.Nao_object == 'Frog':
+                heightOffset_app = 0.12
+                heightOffset_lift = 0.12
+                heightOffset_grab = 0.01
+                rotation = 0.0
+                xOffset_grab = 0.02
+            else:
+                if self.Nao_object == 'Plane':
+                    heightOffset_app = 0.12
+                    heightOffset_lift = 0.12
+                    heightOffset_grab = 0.01
+                    rotation = 0.0
+                    xOffset_grab = 0.02
+
+
+        approachPoint = [self.grabPoint[0] + xOffset_app, self.grabPoint[1] + sideOffset_app, self.grabPoint[2]+heightOffset_app, rotation, 0, 0]
+        grabPoint = [self.grabPoint[0] + xOffset_grab, self.grabPoint[1] + sideOffset_grab, self.grabPoint[2] + heightOffset_grab, rotation, 0, 0]
+        liftPoint = [self.grabPoint[0] + xOffset_lift, self.grabPoint[1] + sideOffset_lift, self.grabPoint[2] + heightOffset_lift, rotation, 0, 0]
+
+        listOfPointsBeforeGrasp=[safeUp,approachPoint, grabPoint]
+        listOfTimesBeforeGrasp=[2,4,5]
+
+        test = self.memory.getData('ObjectGrabber')
+        if test:
+            return None
+
+        self.motionproxy.wbEnableEffectorControl(chainName,True)
+        self.motionproxy.positionInterpolation(chainName,2,listOfPointsBeforeGrasp,mask,listOfTimesBeforeGrasp,True)
+        self.motionproxy.setAngles(handName,0.0,0.3)
+        time.sleep(1.0)
+        test = self.memory.getData('ObjectGrabber')
+        if test:
+            return None
+        self.motionproxy.positionInterpolation(chainName,2,liftPoint,mask,1,True)
+        time.sleep(0.5)
+
+        if object != 0:
+            self.motionproxy.positionInterpolation(chainName,2,beh_pose,mask,2,True)
+
+        return 1
+
+    def putBack(self):
+        """
+        Called from object_manipulation function it runs the process of putting object back to its place with NAO.
+        """
+        rotControl = True
+        if rotControl:
+            mask=15
+        else:
+            mask=7
+
+        xOffset_app = 0.0
+        xOffset_lift = 0.0
+        xOffset_grab = 0.0
+        sideOffset_app = 0.0
+        sideOffset_grab = 0.0
+        sideOffset_lift = 0.0
+        heightOffset_app = 0.0
+        heightOffset_grab = 0.0
+        heightOffset_lift = 0.0
+
+        safeUp=[0.05, self.grab_number * 0.1, 0.33, 0, 0, 0]
+        beh_pose = [0.15, self.grab_number * 0.15, 0.41, 0, 0, 0]
+
+        hand = self.grab_direction + 'Hand'
+        arm = self.grab_direction + 'Arm'
+
+        chainName=arm
+        handName=hand
+        self.motionproxy.setStiffnesses(arm,1.0)
+        #motionProxy.setStiffnesses("RArm",0.0)
+
+        if self.Nao_object == 'Cup':
+            rotation=(-1) * self.grab_number * 1.57
+            xOffset_app = 0.13
+            xOffset_grab = 0.12
+            sideOffset_app = self.grab_number * 0.08
+            sideOffset_grab = self.grab_number * 0.04
+            heightOffset_app = 0.0
+            heightOffset_grab = 0.0
+
+        else:
+            rotation = 0.0
+            heightOffset_app = 0.1
+            heightOffset_grab = 0.02
+            xOffset_grab = 0.1
+            xOffset_app = 0.05
+
+        approachPoint = [self.grabPoint[0] + xOffset_app, self.grabPoint[1] + sideOffset_app, self.grabPoint[2] + heightOffset_app, rotation, 0, 0]
+        liftPoint = [self.grabPoint[0] + xOffset_lift, self.grabPoint[1] + sideOffset_lift, self.grabPoint[2] + heightOffset_lift, rotation, 0, 0]
+        grabPoint = [self.grabPoint[0] + xOffset_grab, self.grabPoint[1] + sideOffset_grab, self.grabPoint[2] + heightOffset_grab, rotation, 0, 0]
+
+        if self.Nao_object == 'Cup':
+            self.motionproxy.positionInterpolation(chainName,2,grabPoint,mask,2,True)
+            time.sleep(0.5)
+            self.motionproxy.setAngles(handName,1.0,0.5)
+            test = self.memory.getData('ObjectGrabber')
+            if test:
+                return None
+            time.sleep(0.5)
+            self.motionproxy.positionInterpolation(chainName,2,approachPoint,mask,2,True)
+            time.sleep(0.5)
+            test = self.memory.getData('ObjectGrabber')
+            if test:
+                return None
+
+            self.motionproxy.positionInterpolations([chainName, "Torso"],2,[[safeUp],[[0.07,0,0.32,0,0,0]]],[7, 7],[[2],[2]],True)
+
+        else:
+            self.motionproxy.wbEnableEffectorControl(chainName,True)
+            listOfPointsBefore=[approachPoint, grabPoint]
+            listOfTimesBefore=[2,3]
+
+            self.motionproxy.positionInterpolation(chainName,2,listOfPointsBefore,mask,listOfTimesBefore,True)
+
+            time.sleep(0.5)
+            self.motionproxy.setAngles(handName,1.0,0.5)
+            time.sleep(0.5)
+            test = self.memory.getData('ObjectGrabber')
+            if test:
+                return None
+
+            self.motionproxy.positionInterpolation(chainName,2,approachPoint,mask,1,True)
+            test = self.memory.getData('ObjectGrabber')
+            if test:
+                return None
+            time.sleep(0.5)
+            self.motionproxy.positionInterpolations([chainName, "Torso"],2,[[safeUp],[[0.07,0,0.32,0,0,0]]],[7, 7],[[2],[2]],True)
+
+        self.postureproxy.goToPosture("StandInit",0.8)
+        self.motionproxy.wbEnableEffectorControl(chainName,False)
+        return 1
+
     def identifyGrabPoint(self):
         """
-        Identifies grab point on objects image.
+        Identifies grab point on objects image. 
         """
         #binaryImage=NaoImageProcessing.histThresh(image,objectColor, diagnostic) # dobivanje binarne slike
         imageTmp = cv2.medianBlur(self.camera.image, 9)
@@ -839,23 +879,7 @@ class Fsm():
 
         return [grabPoint, objectBottomPoint, wLeft, wRight, direction, objectTopPoint]
 
-    def shutdown(self):
-        self.alvideoproxy.unsubscribe(self.video)
-        cv2.destroyAllWindows()
-        ObjectTracker.unload()
-        self.behaveproxy.stopAllBehaviors()
-        time.sleep(1.0)
-        self.postureproxy.goToPosture("StandInit", 0.5)
-        self.motionproxy.killAll()
-        self.myBroker.shutdown()
-        self.alvideoproxy.unsubscribeAllInstances(self.video)
-        exit()
-
-
 
 if __name__ == '__main__':
     nao = Fsm()
-    try:
-        nao.start()
-    finally:
-        nao.shutdown()
+    nao.start()
