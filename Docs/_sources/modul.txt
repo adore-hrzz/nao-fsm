@@ -1,5 +1,0 @@
-Module description
-==================
-
-.. automodule:: NAO_Fsm
-   :members:

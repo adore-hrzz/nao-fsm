@@ -36,6 +36,7 @@ Graphical representation of state machine:
 
 .. figure::  Flowchart.jpeg
    :align:   center
+   :scale: 50 % 
 
 .. raw:: latex
 
@@ -44,7 +45,7 @@ Graphical representation of state machine:
 Module description
 ==================
 
-.. automodule:: NAO_Fsm
+.. automodule:: NAO_Fsm_temp
    :members:
 
 .. raw:: latex
@@ -54,11 +55,12 @@ Module description
 How to use
 ==========
 
-How to start the module : "python NAO_Fsm.py Config.ini".
+How to start the module : "python NAO_Fsm.py arg1 arg2"
 
 **NAO_Fsm** is the name of module. 
 
-**Config.ini** is a configuration file that holds parameters that need to be changed by user depending on situation requirements for specific module behavior and users preferences. 
+**arg1** is the first argument needed to run the protocol, it requires the name of the configuration file that holds parameters that need to be changed by user depending on situation requirements for specific module behavior and users preferences.
+Configuration file is "Config.ini" 
 It's parametres are:
 
 	- **Volume** - Volume of NAO's speakers. Values in range [0, 100]. 
@@ -73,27 +75,32 @@ It's parametres are:
 
 	- **PORT** - NAOs communication port.
 
+**arg2** defines the state user want the protocol to start from. If the user want to run the whole protocol, arg2 can be simply zero. 
+
+Along with main file, additional feature can be used by running a command "display.py arg1" where arg1 is again the configuration file. This program will run in parallel with the protocol and enable the user to get image from camera during each step of the protocol. 
+
 .. raw:: latex
 
     \newpage
 
 Requirements
 ============
+Protocol is writen and tested in Ubuntu 14.04 LTS, in Python 2.7. 
 
 List of required Python modules and libraries:
 	- naoqi - version 1.14
 	- numpy 
-	- cv2 
+	- opencv - prefered version is 2.4.9
 	- configparser - parameters importing from configuration file
 	- argparser - enables argument handling when starting module from command window 
 	- transition - state machine package
 	- pymorph
 	- almath
+	- scipy
+	- pycluster - enables clustering and training for gesture recognition
 
-Module is programmed in Python 2.7.
-
-Also, module reqires two modules made for image processing to be placed in same directory as this module.
-Those modules are: **LinesAndPlanes.py** and **NaoImageProcessing.py**.
+Protocol reqires several modules to be placed in same directory as this module.
+Those modules are: **LinesAndPlanes.py**, **NaoImageProcessing.py**, **recognition.py**, **objectManipulation.py** and **training.py**.
 
 .. raw:: latex
 
@@ -108,4 +115,3 @@ How to run the script: "python takeObjectPicture.py Config.ini"
 
 This script is using configuration file as well, the same as the FSM module, but different parameters. User must define those parameters before running the script in order to
 get the best images and segmentation.
-
