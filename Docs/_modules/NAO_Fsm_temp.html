@@ -1,0 +1,920 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>NAO_Fsm_temp &mdash; nao-fsm 2.0 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '2.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="nao-fsm 2.0 documentation" href="../index.html" />
+    <link rel="up" title="Module code" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../index.html">nao-fsm 2.0 documentation</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for NAO_Fsm_temp</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">from</span> <span class="nn">naoqi</span> <span class="kn">import</span> <span class="n">ALProxy</span><span class="p">,</span> <span class="n">ALBroker</span><span class="p">,</span> <span class="n">ALModule</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">cv2</span>
+<span class="kn">import</span> <span class="nn">NaoImageProcessing</span><span class="o">,</span> <span class="nn">LinesAndPlanes</span>
+<span class="kn">import</span> <span class="nn">vision_definitions</span>
+<span class="kn">import</span> <span class="nn">ConfigParser</span><span class="o">,</span> <span class="nn">argparse</span>
+<span class="kn">import</span> <span class="nn">objectManipulation</span>
+<span class="kn">import</span> <span class="nn">random</span>
+
+<span class="kn">from</span> <span class="nn">ghmm</span> <span class="kn">import</span> <span class="o">*</span>
+
+<span class="kn">from</span> <span class="nn">vision_definitions</span> <span class="kn">import</span> <span class="n">kVGA</span><span class="p">,</span> <span class="n">kBGRColorSpace</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="kn">from</span> <span class="nn">transitions</span> <span class="kn">import</span> <span class="n">Machine</span>
+
+<span class="k">global</span> <span class="n">ObjectTracker</span>
+
+
+<div class="viewcode-block" id="ObjectTrackerModule"><a class="viewcode-back" href="../index.html#NAO_Fsm_temp.ObjectTrackerModule">[docs]</a><span class="k">class</span> <span class="nc">ObjectTrackerModule</span><span class="p">(</span><span class="n">ALModule</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class for object detection and tracking. With it&#39;s inheritance ALModule it can use object tracking module</span>
+<span class="sd">    that is running on NAO itself, Object Tracker.</span>
+<span class="sd">    All it&#39;s methods are using Object Tracker features.</span>
+
+<span class="sd">    Init function defines proxies and gestures that can be recognized.</span>
+
+<span class="sd">    :param myBroker: broker for communication between NAO and computer</span>
+<span class="sd">    :param name: name of ALModule</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">myBroker</span><span class="p">):</span>
+        <span class="n">ALModule</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">behaviors</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exists</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kindNames</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">waiting</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tts</span> <span class="o">=</span> <span class="n">ALProxy</span><span class="p">(</span><span class="s">&quot;ALTextToSpeech&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gestureProxy</span> <span class="o">=</span> <span class="n">ALProxy</span><span class="p">(</span><span class="s">&quot;NAOObjectGesture&quot;</span><span class="p">,</span> <span class="n">myBroker</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">motionProxy</span> <span class="o">=</span> <span class="n">ALProxy</span><span class="p">(</span><span class="s">&quot;ALMotion&quot;</span><span class="p">,</span> <span class="n">myBroker</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">memProxy</span> <span class="o">=</span> <span class="n">ALProxy</span><span class="p">(</span><span class="s">&quot;ALMemory&quot;</span><span class="p">,</span> <span class="n">myBroker</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">motionProxy</span><span class="o">.</span><span class="n">setStiffnesses</span><span class="p">(</span><span class="s">&quot;Head&quot;</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gestureProxy</span><span class="o">.</span><span class="n">startTracker</span><span class="p">(</span><span class="mi">15</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gestureProxy</span><span class="o">.</span><span class="n">addGesture</span><span class="p">(</span><span class="s">&quot;drink&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">6</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gestureProxy</span><span class="o">.</span><span class="n">addGesture</span><span class="p">(</span><span class="s">&quot;frogL&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">7</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gestureProxy</span><span class="o">.</span><span class="n">addGesture</span><span class="p">(</span><span class="s">&quot;frogR&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gestureProxy</span><span class="o">.</span><span class="n">addGesture</span><span class="p">(</span><span class="s">&quot;duckR&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gestureProxy</span><span class="o">.</span><span class="n">addGesture</span><span class="p">(</span><span class="s">&quot;duckL&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span>
+
+<div class="viewcode-block" id="ObjectTrackerModule.startTracker"><a class="viewcode-back" href="../index.html#NAO_Fsm_temp.ObjectTrackerModule.startTracker">[docs]</a>    <span class="k">def</span> <span class="nf">startTracker</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">camId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Starts object tracking with defined camera.</span>
+
+<span class="sd">        :param camId: Id of NAOs camera.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gestureProxy</span><span class="o">.</span><span class="n">startTracker</span><span class="p">(</span><span class="mi">15</span><span class="p">,</span> <span class="n">camId</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gestureProxy</span><span class="o">.</span><span class="n">focusObject</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="c">#    self.memProxy.subscribeToMicroEvent(name, &quot;ObjectTracker&quot;, name, &quot;onObjGet&quot;)</span>
+        <span class="c">#    self.memProxy.subscribeToMicroEvent(name, &quot;ObjectTracker&quot;, name, &quot;storeData&quot;)</span>
+</div>
+<div class="viewcode-block" id="ObjectTrackerModule.stopTracker"><a class="viewcode-back" href="../index.html#NAO_Fsm_temp.ObjectTrackerModule.stopTracker">[docs]</a>    <span class="k">def</span> <span class="nf">stopTracker</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Stops object tracking.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gestureProxy</span><span class="o">.</span><span class="n">stopTracker</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gestureProxy</span><span class="o">.</span><span class="n">stopFocus</span><span class="p">()</span>
+        <span class="c">#    self.memProxy.unsubscribeToMicroEvent(name, &quot;ObjectTracker&quot;)</span>
+        <span class="c">#    self.memProxy.unsubscribeToMicroEvent(name, &quot;ObjectTracker&quot;)</span>
+
+</div>
+<div class="viewcode-block" id="ObjectTrackerModule.load"><a class="viewcode-back" href="../index.html#NAO_Fsm_temp.ObjectTrackerModule.load">[docs]</a>    <span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Loads image sets of objects from NAO to tracker and defines object name.</span>
+
+<span class="sd">        :param path: Path to image sets in NAOs memory.</span>
+<span class="sd">        :param name: Object name.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gestureProxy</span><span class="o">.</span><span class="n">loadDataset</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kindNames</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exists</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">behaviors</span><span class="o">.</span><span class="n">append</span><span class="p">([])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">waiting</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gestureProxy</span><span class="o">.</span><span class="n">trackObject</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kindNames</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">memProxy</span><span class="o">.</span><span class="n">subscribeToMicroEvent</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="s">&quot;ObjectTracker&quot;</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="s">&quot;onObjGet&quot;</span><span class="p">)</span>
+        <span class="c">#    self.memProxy.subscribeToMicroEvent(name, &quot;ObjectTracker&quot;, name, &quot;storeData&quot;)</span>
+</div>
+    <span class="k">def</span> <span class="nf">getIdx</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">kindNames</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">kindNames</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">getBehaviors</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getIdx</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">idx</span><span class="o">!=</span><span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">behaviors</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">getExist</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getIdx</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">idx</span><span class="o">!=</span><span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">exists</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">getWaiting</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getIdx</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">idx</span><span class="o">!=</span><span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">waiting</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">waitForBehavior</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">behavior</span><span class="p">):</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getIdx</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gestureProxy</span><span class="o">.</span><span class="n">clearEventTraj</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&#39;Waiting for behavior: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">behavior</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">idx</span><span class="o">!=</span><span class="bp">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">behavior</span> <span class="o">==</span> <span class="s">&quot;frog&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">waiting</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;frogL&quot;</span><span class="p">,</span> <span class="s">&quot;frogR&quot;</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">behavior</span> <span class="o">==</span> <span class="s">&quot;duck&quot;</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">waiting</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;duckL&quot;</span><span class="p">,</span> <span class="s">&quot;duckR&quot;</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">waiting</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">behavior</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">onObjGet</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">message</span><span class="p">):</span>
+        <span class="nb">id</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">kindNames</span><span class="p">):</span>
+            <span class="nb">id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">kindNames</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">value</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">):</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">exists</span><span class="p">[</span><span class="nb">id</span><span class="p">]</span><span class="o">=</span><span class="bp">True</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span><span class="o">!=</span><span class="bp">None</span><span class="p">):</span>
+                    <span class="c">#print (value[5])</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">behaviors</span><span class="p">[</span><span class="nb">id</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span>
+                    <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">waiting</span><span class="p">[</span><span class="nb">id</span><span class="p">]</span><span class="o">!=</span> <span class="bp">None</span><span class="p">):</span>
+                        <span class="k">for</span> <span class="n">tmp</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">waiting</span><span class="p">[</span><span class="nb">id</span><span class="p">]:</span>
+                            <span class="k">if</span> <span class="n">tmp</span> <span class="ow">in</span> <span class="n">value</span><span class="p">[</span><span class="mi">5</span><span class="p">]:</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">waiting</span><span class="p">[</span><span class="nb">id</span><span class="p">]</span> <span class="o">=</span> <span class="bp">None</span>
+                                <span class="k">break</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">exists</span><span class="p">[</span><span class="nb">id</span><span class="p">]</span><span class="o">=</span><span class="bp">False</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">!=</span><span class="bp">None</span><span class="p">):</span>
+                    <span class="c">#print (value[1])</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">behaviors</span><span class="p">[</span><span class="nb">id</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">waiting</span><span class="p">[</span><span class="nb">id</span><span class="p">]</span><span class="o">!=</span> <span class="bp">None</span><span class="p">):</span>
+                        <span class="k">for</span> <span class="n">tmp</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">waiting</span><span class="p">[</span><span class="nb">id</span><span class="p">]:</span>
+                            <span class="k">if</span> <span class="n">tmp</span> <span class="ow">in</span> <span class="n">value</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">waiting</span><span class="p">[</span><span class="nb">id</span><span class="p">]</span> <span class="o">=</span> <span class="bp">None</span>
+                                <span class="k">break</span>
+
+<span class="c">#    def storeData(self, key, value, message):</span>
+<span class="c">#        if value:</span>
+<span class="c">#            if value[0]:</span>
+<span class="c">#                print(&quot;I see the cup&quot;)</span>
+<span class="c">#                #self.log.write(str(value[3][0])+&quot;, &quot;+str(value[3][1])+&quot;\n&quot;) ########################################</span>
+<span class="c">#                self.data = value[3]</span>
+<span class="c">#            else:</span>
+<span class="c">#                self.data = 0</span>
+<span class="c">#                print(&quot;I don&#39;t see the cup&quot;)</span>
+
+<div class="viewcode-block" id="ObjectTrackerModule.unload"><a class="viewcode-back" href="../index.html#NAO_Fsm_temp.ObjectTrackerModule.unload">[docs]</a>    <span class="k">def</span> <span class="nf">unload</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Removes all images, and gestures from memory, stops Object Tracker.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gestureProxy</span><span class="o">.</span><span class="n">stopTracker</span><span class="p">()</span>
+        <span class="c">#    self.memProxy.unsubscribeToMicroEvent(name, &quot;ObjectTracker&quot;)</span>
+        <span class="c">#    self.memProxy.unsubscribeToMicroEvent(name, &quot;ObjectTracker&quot;)</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exists</span><span class="p">)):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">gestureProxy</span><span class="o">.</span><span class="n">removeObjectKind</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">gestureProxy</span><span class="o">.</span><span class="n">removeEvent</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kindNames</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gestureProxy</span><span class="o">.</span><span class="n">removeGesture</span><span class="p">(</span><span class="s">&quot;drink&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gestureProxy</span><span class="o">.</span><span class="n">removeGesture</span><span class="p">(</span><span class="s">&quot;frogL&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gestureProxy</span><span class="o">.</span><span class="n">removeGesture</span><span class="p">(</span><span class="s">&quot;frogR&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gestureProxy</span><span class="o">.</span><span class="n">removeGesture</span><span class="p">(</span><span class="s">&quot;duckL&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gestureProxy</span><span class="o">.</span><span class="n">removeGesture</span><span class="p">(</span><span class="s">&quot;duckR&quot;</span><span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="Fsm"><a class="viewcode-back" href="../index.html#NAO_Fsm_temp.Fsm">[docs]</a><span class="k">class</span> <span class="nc">Fsm</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Fsm = Finite State Machine</span>
+<span class="sd">    State machine is defined with this class, all its states, transitions and functions.</span>
+
+<span class="sd">    :param states: List of all FSM states.</span>
+
+<span class="sd">    :param transitions: List of all transitions between states. Transition is defined with several arguments:</span>
+
+<span class="sd">                        1) trigger: command that triggers transition. After transition it runs certain function.</span>
+
+<span class="sd">                        2) source: source state.</span>
+
+<span class="sd">                        3) dest: destination state.</span>
+
+<span class="sd">                        4) conditions: transition conditions if required</span>
+
+<span class="sd">                        5) after: argument that can be named before, it contains a name of</span>
+<span class="sd">                           function that will be called after transition.</span>
+
+<span class="sd">    Init function defines all proxies for this class and it reads data from configuration file.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">states</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;Start&#39;</span><span class="p">,</span> <span class="s">&#39;Initial&#39;</span><span class="p">,</span> <span class="s">&#39;Search&#39;</span><span class="p">,</span> <span class="s">&#39;Image_processing&#39;</span><span class="p">,</span>
+              <span class="s">&#39;Object_manipulation&#39;</span><span class="p">,</span> <span class="s">&#39;Object_tracking&#39;</span><span class="p">]</span>
+
+    <span class="n">transitions</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">{</span><span class="s">&#39;trigger&#39;</span><span class="p">:</span> <span class="s">&#39;start&#39;</span><span class="p">,</span> <span class="s">&#39;source&#39;</span><span class="p">:</span> <span class="s">&#39;Start&#39;</span><span class="p">,</span> <span class="s">&#39;dest&#39;</span><span class="p">:</span> <span class="s">&#39;Initial&#39;</span><span class="p">,</span> <span class="s">&#39;after&#39;</span><span class="p">:</span> <span class="s">&#39;initial_state&#39;</span><span class="p">},</span>
+        <span class="p">{</span><span class="s">&#39;trigger&#39;</span><span class="p">:</span> <span class="s">&#39;search&#39;</span><span class="p">,</span> <span class="s">&#39;source&#39;</span><span class="p">:</span> <span class="s">&#39;Initial&#39;</span><span class="p">,</span> <span class="s">&#39;dest&#39;</span><span class="p">:</span> <span class="s">&#39;Search&#39;</span><span class="p">,</span> <span class="s">&#39;after&#39;</span><span class="p">:</span> <span class="s">&#39;object_detection&#39;</span><span class="p">},</span>
+        <span class="p">{</span><span class="s">&#39;trigger&#39;</span><span class="p">:</span> <span class="s">&#39;process&#39;</span><span class="p">,</span> <span class="s">&#39;source&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s">&#39;Initial&#39;</span><span class="p">,</span> <span class="s">&#39;Search&#39;</span><span class="p">],</span> <span class="s">&#39;dest&#39;</span><span class="p">:</span> <span class="s">&#39;Image_processing&#39;</span><span class="p">,</span> <span class="s">&#39;after&#39;</span><span class="p">:</span> <span class="s">&#39;image_process&#39;</span><span class="p">},</span>
+        <span class="p">{</span><span class="s">&#39;trigger&#39;</span><span class="p">:</span> <span class="s">&#39;grab&#39;</span><span class="p">,</span> <span class="s">&#39;source&#39;</span><span class="p">:</span> <span class="s">&#39;Image_processing&#39;</span><span class="p">,</span> <span class="s">&#39;dest&#39;</span><span class="p">:</span> <span class="s">&#39;Object_manipulation&#39;</span><span class="p">,</span> <span class="s">&#39;after&#39;</span><span class="p">:</span> <span class="s">&#39;object_manipulation&#39;</span><span class="p">},</span>
+        <span class="p">{</span><span class="s">&#39;trigger&#39;</span><span class="p">:</span> <span class="s">&#39;track&#39;</span><span class="p">,</span> <span class="s">&#39;source&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s">&#39;Initial&#39;</span><span class="p">,</span> <span class="s">&#39;Object_manipulation&#39;</span><span class="p">],</span> <span class="s">&#39;dest&#39;</span><span class="p">:</span> <span class="s">&#39;Object_tracking&#39;</span><span class="p">,</span> <span class="s">&#39;after&#39;</span><span class="p">:</span> <span class="s">&#39;object_tracking&#39;</span><span class="p">},</span>
+        <span class="p">{</span><span class="s">&#39;trigger&#39;</span><span class="p">:</span> <span class="s">&#39;initial&#39;</span><span class="p">,</span> <span class="s">&#39;source&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s">&#39;Search&#39;</span><span class="p">,</span> <span class="s">&#39;Image_processing&#39;</span><span class="p">,</span> <span class="s">&#39;Object_action&#39;</span><span class="p">,</span> <span class="s">&#39;Object_tracking&#39;</span><span class="p">],</span> <span class="s">&#39;dest&#39;</span><span class="p">:</span> <span class="s">&#39;Initial&#39;</span><span class="p">,</span> <span class="s">&#39;after&#39;</span><span class="p">:</span> <span class="s">&#39;initial_state&#39;</span><span class="p">}</span>
+        <span class="p">]</span>
+
+    <span class="n">ObjectTracker</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">global</span> <span class="n">ObjectTracker</span>
+        <span class="k">print</span> <span class="p">(</span><span class="s">&quot;Initializing program ...&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">robRotation</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">()</span>
+        <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">&quot;config&quot;</span><span class="p">)</span>
+        <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">&quot;state&quot;</span><span class="p">)</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+        <span class="n">cfile</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">config</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">start_state</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">state</span>
+
+        <span class="n">config</span> <span class="o">=</span> <span class="n">ConfigParser</span><span class="o">.</span><span class="n">ConfigParser</span><span class="p">()</span>
+        <span class="n">config</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">cfile</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">state_file</span> <span class="o">=</span> <span class="s">&quot;fsm_state.ini&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state_config</span> <span class="o">=</span> <span class="n">ConfigParser</span><span class="o">.</span><span class="n">ConfigParser</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state_config</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state_file</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">IP</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Grab settings&#39;</span><span class="p">,</span> <span class="s">&#39;IP&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">PORT</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Grab settings&#39;</span><span class="p">,</span> <span class="s">&#39;PORT&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">PORT</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PORT</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">objectColor</span> <span class="o">=</span> <span class="mf">0.0</span> <span class="c"># potreban fix !!! ######################################################################</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">myBroker</span> <span class="o">=</span> <span class="n">ALBroker</span><span class="p">(</span><span class="s">&quot;myBroker&quot;</span><span class="p">,</span> <span class="s">&quot;0.0.0.0&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">IP</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">PORT</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">camera</span><span class="o">=</span><span class="n">NaoImageProcessing</span><span class="o">.</span><span class="n">NaoImgGetter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">IP</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">PORT</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">motionproxy</span><span class="o">=</span><span class="n">ALProxy</span><span class="p">(</span><span class="s">&#39;ALMotion&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">myBroker</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">motionproxy</span><span class="o">.</span><span class="n">killAll</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tts</span><span class="o">=</span><span class="n">ALProxy</span><span class="p">(</span><span class="s">&#39;ALTextToSpeech&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">myBroker</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">behaveproxy</span><span class="o">=</span><span class="n">ALProxy</span><span class="p">(</span><span class="s">&#39;ALBehaviorManager&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">myBroker</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">postureproxy</span><span class="o">=</span><span class="n">ALProxy</span><span class="p">(</span><span class="s">&#39;ALRobotPosture&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">myBroker</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">navigationProxy</span> <span class="o">=</span> <span class="n">ALProxy</span><span class="p">(</span><span class="s">&#39;ALNavigation&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">myBroker</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sound</span> <span class="o">=</span> <span class="n">ALProxy</span><span class="p">(</span><span class="s">&#39;ALAudioDevice&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">myBroker</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">memory</span> <span class="o">=</span> <span class="n">ALProxy</span><span class="p">(</span><span class="s">&#39;ALMemory&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">myBroker</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">memory</span><span class="o">.</span><span class="n">insertData</span><span class="p">(</span><span class="s">&#39;ObjectGrabber&#39;</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gestureProxy</span> <span class="o">=</span> <span class="n">ALProxy</span><span class="p">(</span><span class="s">&quot;NAOObjectGesture&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">myBroker</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">object_is</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span> <span class="p">(</span><span class="s">&#39;Grab settings&#39;</span><span class="p">,</span> <span class="s">&#39;Object&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">volume</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Grab settings&#39;</span><span class="p">,</span> <span class="s">&#39;Volume&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">volume</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">volume</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sound</span><span class="o">.</span><span class="n">setOutputVolume</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">volume</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">mute</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span> <span class="p">(</span><span class="s">&#39;Grab settings&#39;</span><span class="p">,</span> <span class="s">&#39;Mute&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mute</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mute</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">diagnostic</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span> <span class="p">(</span><span class="s">&#39;Grab settings&#39;</span><span class="p">,</span> <span class="s">&#39;Diagnostics&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">diagnostic</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">diagnostic</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">h</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span> <span class="p">(</span><span class="s">&#39;Grab settings&#39;</span><span class="p">,</span> <span class="s">&#39;Height&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">h</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">program_count</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Grab settings&#39;</span><span class="p">,</span> <span class="s">&#39;Counter_program&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">program_count</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">program_count</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">behaviour_count</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Grab settings&#39;</span><span class="p">,</span> <span class="s">&#39;Counter&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">behaviour_count</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">behaviour_count</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">machine</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">states</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">states</span><span class="p">,</span> <span class="n">transitions</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">transitions</span><span class="p">,</span> <span class="n">initial</span><span class="o">=</span><span class="s">&#39;Start&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">head_pitch</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">head_yaw</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">found</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">back_to_initial</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="n">ObjectTracker</span> <span class="o">=</span> <span class="n">ObjectTrackerModule</span><span class="p">(</span><span class="s">&quot;ObjectTracker&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">myBroker</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">grabPoint</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">grab_direction</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">grab_number</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Nao_object</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">grab_pix</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">alvideoproxy</span> <span class="o">=</span> <span class="n">ALProxy</span><span class="p">(</span><span class="s">&quot;ALVideoDevice&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">IP</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">PORT</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">video</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alvideoproxy</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span><span class="s">&quot;video&quot;</span><span class="p">,</span> <span class="n">kVGA</span><span class="p">,</span> <span class="n">kBGRColorSpace</span><span class="p">,</span> <span class="mi">30</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">camProxy</span> <span class="o">=</span> <span class="n">ALProxy</span><span class="p">(</span><span class="s">&quot;ALVideoDevice&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">IP</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">PORT</span><span class="p">)</span>
+
+        <span class="k">print</span> <span class="p">(</span><span class="s">&quot;Initialization complete ...&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Fsm.initial_state"><a class="viewcode-back" href="../index.html#NAO_Fsm_temp.Fsm.initial_state">[docs]</a>    <span class="k">def</span> <span class="nf">initial_state</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Puts NAO in its initial state, standing position.</span>
+<span class="sd">        From here, Fsm goes to its next state.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c">#print (self.machine.state)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">state_config</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s">&quot;State info&quot;</span><span class="p">,</span> <span class="s">&quot;state&quot;</span><span class="p">,</span> <span class="s">&quot;Initial&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state_config</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s">&quot;State info&quot;</span><span class="p">,</span> <span class="s">&quot;grab_point_x&quot;</span><span class="p">,</span> <span class="s">&quot;0&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state_config</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s">&quot;State info&quot;</span><span class="p">,</span> <span class="s">&quot;grab_point_y&quot;</span><span class="p">,</span> <span class="s">&quot;0&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state_config</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s">&quot;State info&quot;</span><span class="p">,</span> <span class="s">&quot;start_tracking&quot;</span><span class="p">,</span> <span class="s">&quot;0&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state_config</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s">&quot;State info&quot;</span><span class="p">,</span> <span class="s">&quot;stop_tracking&quot;</span><span class="p">,</span> <span class="s">&quot;1&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state_config</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s">&quot;State info&quot;</span><span class="p">,</span> <span class="s">&quot;end&quot;</span><span class="p">,</span> <span class="s">&quot;0&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state_config</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s">&quot;State info&quot;</span><span class="p">,</span> <span class="s">&quot;pix_x&quot;</span><span class="p">,</span> <span class="s">&quot;0&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state_config</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s">&quot;State info&quot;</span><span class="p">,</span> <span class="s">&quot;pix_y&quot;</span><span class="p">,</span> <span class="s">&quot;0&quot;</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state_file</span><span class="p">,</span> <span class="s">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">configfile</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state_config</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">configfile</span><span class="p">)</span>
+
+        <span class="c">#self.motionproxy.killAll()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">postureproxy</span><span class="o">.</span><span class="n">goToPosture</span><span class="p">(</span><span class="s">&quot;StandInit&quot;</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">motionproxy</span><span class="o">.</span><span class="n">setAngles</span><span class="p">(</span><span class="s">&#39;HeadPitch&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">motionproxy</span><span class="o">.</span><span class="n">setAngles</span><span class="p">(</span><span class="s">&#39;HeadYaw&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">motionproxy</span><span class="o">.</span><span class="n">setStiffnesses</span><span class="p">(</span><span class="s">&quot;Head&quot;</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&#39;NAO is in initial position&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">back_to_initial</span><span class="p">:</span>
+            <span class="c">#if not self.mute:</span>
+            <span class="c">#    self.tts.say(&#39;Are you ready for some fun&#39;)</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_state</span> <span class="o">==</span> <span class="s">&#39;grabbing&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">Nao_object</span> <span class="o">=</span> <span class="s">&#39;Cup&#39;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">process</span><span class="p">()</span>
+            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_state</span> <span class="o">==</span> <span class="s">&#39;tracking&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">track</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">search</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+
+            <span class="n">repeat</span> <span class="o">=</span> <span class="nb">raw_input</span><span class="p">(</span><span class="s">&quot;Repeat? : &quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">repeat</span> <span class="o">==</span> <span class="s">&quot;all&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">search</span><span class="p">()</span>
+            <span class="k">elif</span> <span class="n">repeat</span> <span class="o">==</span> <span class="s">&quot;grabbing&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">Nao_object</span> <span class="o">=</span> <span class="s">&#39;Cup&#39;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">process</span><span class="p">()</span>
+            <span class="k">elif</span> <span class="n">repeat</span> <span class="o">==</span> <span class="s">&quot;tracking&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">track</span><span class="p">()</span>
+            <span class="k">elif</span> <span class="n">repeat</span> <span class="o">==</span> <span class="s">&quot;search&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">search</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">shutdown</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="Fsm.object_detection"><a class="viewcode-back" href="../index.html#NAO_Fsm_temp.Fsm.object_detection">[docs]</a>    <span class="k">def</span> <span class="nf">object_detection</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Runs object searching using Object Tracking Module. First, NAO is searching for object near him, then, if</span>
+<span class="sd">        object is not found, he moves his head up and search for object in distance in front of him. If the object is still</span>
+<span class="sd">        not found, NAO moves his head right, and then left searching for object.</span>
+<span class="sd">        If object is found, FSM goes to next state, if not, it goes back to initial state.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">global</span> <span class="n">ObjectTracker</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state_config</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s">&quot;State info&quot;</span><span class="p">,</span> <span class="s">&quot;state&quot;</span><span class="p">,</span> <span class="s">&quot;Searching&quot;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state_file</span><span class="p">,</span> <span class="s">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">configfile</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state_config</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">configfile</span><span class="p">)</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="c">#if self.object_is == &#39;Cup&#39;:</span>
+        <span class="n">ObjectTracker</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s">&quot;/home/nao/ImageSets/cup&quot;</span><span class="p">,</span> <span class="s">&#39;Cup&#39;</span><span class="p">)</span>
+
+        <span class="n">ObjectTracker</span><span class="o">.</span><span class="n">startTracker</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">head_pitch_list</span> <span class="o">=</span> <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span> <span class="p">[</span><span class="o">-</span><span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span> <span class="p">[</span><span class="o">-</span><span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span> <span class="p">[</span><span class="o">-</span><span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">]]</span>
+        <span class="n">head_yaw_list</span> <span class="o">=</span> <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">]]</span>
+        <span class="n">look_dir</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;close&quot;</span><span class="p">,</span> <span class="s">&quot;far&quot;</span><span class="p">,</span> <span class="s">&quot;right&quot;</span><span class="p">,</span> <span class="s">&quot;left&quot;</span><span class="p">]</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">gestureProxy</span><span class="o">.</span><span class="n">stopFocus</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">head_pitch</span> <span class="o">=</span> <span class="n">head_pitch_list</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">head_yaw</span> <span class="o">=</span> <span class="n">head_yaw_list</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;Searching for object: &quot;</span> <span class="o">+</span> <span class="n">look_dir</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">move_head</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">searching_for_object</span><span class="p">()</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">found</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">robRotation</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">head_yaw</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">ObjectTracker</span><span class="o">.</span><span class="n">stopTracker</span><span class="p">()</span>
+                <span class="n">ObjectTracker</span><span class="o">.</span><span class="n">unload</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">behaveproxy</span><span class="o">.</span><span class="n">stopAllBehaviors</span><span class="p">()</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">postureproxy</span><span class="o">.</span><span class="n">goToPosture</span><span class="p">(</span><span class="s">&quot;StandInit&quot;</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">motionproxy</span><span class="o">.</span><span class="n">killAll</span><span class="p">()</span>
+                <span class="c">#self.memory.unsubscribeToMicroEvent(&#39;Cup&#39;, &quot;ObjectTracker&quot;)</span>
+                <span class="c">#self.gestureProxy.stopFocus()</span>
+                <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">process</span><span class="p">()</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">move_to_object</span><span class="p">()</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">found</span><span class="p">:</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">ObjectTracker</span><span class="o">.</span><span class="n">stopTracker</span><span class="p">()</span>
+            <span class="n">ObjectTracker</span><span class="o">.</span><span class="n">unload</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">behaveproxy</span><span class="o">.</span><span class="n">stopAllBehaviors</span><span class="p">()</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">postureproxy</span><span class="o">.</span><span class="n">goToPosture</span><span class="p">(</span><span class="s">&quot;StandInit&quot;</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">motionproxy</span><span class="o">.</span><span class="n">killAll</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">back_to_initial</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">initial</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="Fsm.searching_for_object"><a class="viewcode-back" href="../index.html#NAO_Fsm_temp.Fsm.searching_for_object">[docs]</a>    <span class="k">def</span> <span class="nf">searching_for_object</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Object_detection function is calling this function. It starts object tracking with Object Tracker module, and</span>
+<span class="sd">        stops tracking if object is found.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">global</span> <span class="n">ObjectTracker</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">timeObject</span> <span class="o">=</span> <span class="mi">4</span>
+        <span class="k">while</span> <span class="n">t</span> <span class="o">&lt;</span> <span class="n">timeObject</span><span class="p">:</span>
+            <span class="n">test_1</span> <span class="o">=</span> <span class="n">ObjectTracker</span><span class="o">.</span><span class="n">getExist</span><span class="p">(</span><span class="s">&#39;Cup&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">test_1</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="ow">and</span> <span class="n">test_1</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">mute</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">tts</span><span class="o">.</span><span class="n">say</span><span class="p">(</span><span class="s">&#39;I found a cup&#39;</span><span class="p">)</span>
+                <span class="k">print</span> <span class="s">&#39;Cup exists&#39;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">Nao_object</span> <span class="o">=</span> <span class="s">&#39;Cup&#39;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">found</span> <span class="o">=</span> <span class="bp">True</span>
+                <span class="k">return</span> <span class="mi">1</span>
+
+            <span class="c">#test_2 = ObjectTracker.getExist(&#39;Duck&#39;)</span>
+            <span class="c">#if test_2 is not None and test_2:</span>
+            <span class="c">#    print &#39;Duck exists&#39;</span>
+            <span class="c">#    self.Nao_object = &#39;Duck&#39;</span>
+            <span class="c">#    self.found = True</span>
+            <span class="c">#    return 1</span>
+
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">print</span> <span class="n">t</span>
+            <span class="n">t</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">found</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="k">return</span> <span class="mi">0</span>
+</div>
+<div class="viewcode-block" id="Fsm.move_head"><a class="viewcode-back" href="../index.html#NAO_Fsm_temp.Fsm.move_head">[docs]</a>    <span class="k">def</span> <span class="nf">move_head</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Moves NAO&#39;s head depending on where NAO should search for object.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">motionproxy</span><span class="o">.</span><span class="n">setAngles</span><span class="p">(</span><span class="s">&#39;HeadPitch&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">head_pitch</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">head_pitch</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">motionproxy</span><span class="o">.</span><span class="n">setAngles</span><span class="p">(</span><span class="s">&#39;HeadYaw&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">head_yaw</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">head_yaw</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">return</span> <span class="mi">1</span>
+</div>
+<div class="viewcode-block" id="Fsm.move_to_object"><a class="viewcode-back" href="../index.html#NAO_Fsm_temp.Fsm.move_to_object">[docs]</a>    <span class="k">def</span> <span class="nf">move_to_object</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This function is executed if object is placed far from NAO and he has to walk towards it.</span>
+<span class="sd">        NAO is walking until he hits an obstacle with its foot number.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">motionproxy</span><span class="o">.</span><span class="n">setAngles</span><span class="p">(</span><span class="s">&#39;HeadYaw&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">motionproxy</span><span class="o">.</span><span class="n">setAngles</span><span class="p">(</span><span class="s">&#39;HeadPitch&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">navigationProxy</span><span class="o">.</span><span class="n">moveTo</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">robRotation</span><span class="p">)</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">navigationProxy</span><span class="o">.</span><span class="n">moveTo</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">navigationProxy</span><span class="o">.</span><span class="n">setSecurityDistance</span><span class="p">(</span><span class="mf">0.3</span><span class="p">)</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">navigationProxy</span><span class="o">.</span><span class="n">moveTo</span><span class="p">(</span><span class="o">-</span><span class="mf">0.07</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">postureproxy</span><span class="o">.</span><span class="n">goToPosture</span><span class="p">(</span><span class="s">&quot;StandInit&quot;</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">)</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">process</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="Fsm.image_process"><a class="viewcode-back" href="../index.html#NAO_Fsm_temp.Fsm.image_process">[docs]</a>    <span class="k">def</span> <span class="nf">image_process</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Used for image segmentation, finding holes on object and calculating grabbing</span>
+<span class="sd">        point. Grabbing point is identified using function &quot;identifyGrabPoint&quot;.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state_config</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s">&quot;State info&quot;</span><span class="p">,</span> <span class="s">&quot;state&quot;</span><span class="p">,</span> <span class="s">&quot;Image processing&quot;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state_file</span><span class="p">,</span> <span class="s">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">configfile</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state_config</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">configfile</span><span class="p">)</span>
+
+        <span class="n">Gesture_robot</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="n">offset_x</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="n">offset_z</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="n">grab_orientation</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="n">maxGrabDiameter</span> <span class="o">=</span> <span class="mf">0.3</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="n">d_hor</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="n">d_ver</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="n">stsel</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">camera</span><span class="o">.</span><span class="n">getImage</span><span class="p">(</span><span class="mi">11</span><span class="p">)</span> <span class="c">#change to string if problems occur</span>
+        <span class="n">cv2</span><span class="o">.</span><span class="n">imwrite</span><span class="p">(</span><span class="s">&#39;camera.png&#39;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">camera</span><span class="o">.</span><span class="n">image</span><span class="p">)</span>
+
+        <span class="c"># racunanje tocke hvatista, obrada slike te odredivanje tocke hvatista u pikselima, pretvordba u metre preko</span>
+        <span class="c"># ravnina i linija</span>
+        <span class="n">temp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">identifyGrabPoint</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">temp</span> <span class="o">==</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">manual_break</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="k">return</span> <span class="bp">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="p">[</span><span class="n">grabPointImage</span><span class="p">,</span><span class="n">bottomPoint</span><span class="p">,</span><span class="n">wLeft</span><span class="p">,</span><span class="n">wRight</span><span class="p">,</span><span class="n">direction</span><span class="p">,</span><span class="n">topPoint</span><span class="p">]</span><span class="o">=</span><span class="n">temp</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">state_config</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s">&quot;State info&quot;</span><span class="p">,</span> <span class="s">&quot;pix_x&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">grabPointImage</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state_config</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s">&quot;State info&quot;</span><span class="p">,</span> <span class="s">&quot;pix_y&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">grabPointImage</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state_file</span><span class="p">,</span> <span class="s">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">configfile</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">state_config</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">configfile</span><span class="p">)</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+        <span class="n">lineLeft</span> <span class="o">=</span> <span class="n">LinesAndPlanes</span><span class="o">.</span><span class="n">getLineEquation</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">motionproxy</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="n">wLeft</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">wLeft</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">tLeft</span> <span class="o">=</span> <span class="n">LinesAndPlanes</span><span class="o">.</span><span class="n">intersectWithPlane</span><span class="p">(</span><span class="n">lineLeft</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="p">(</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">))</span>
+
+        <span class="n">lineRight</span> <span class="o">=</span> <span class="n">LinesAndPlanes</span><span class="o">.</span><span class="n">getLineEquation</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">motionproxy</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="n">wRight</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">wRight</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">tRight</span> <span class="o">=</span> <span class="n">LinesAndPlanes</span><span class="o">.</span><span class="n">intersectWithPlane</span><span class="p">(</span><span class="n">lineRight</span> <span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="p">(</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">))</span>
+
+        <span class="n">lineBottom</span> <span class="o">=</span> <span class="n">LinesAndPlanes</span><span class="o">.</span><span class="n">getLineEquation</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">motionproxy</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">bottomPoint</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">bottomPoint</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">tBottom</span> <span class="o">=</span> <span class="n">LinesAndPlanes</span><span class="o">.</span><span class="n">intersectWithPlane</span><span class="p">(</span><span class="n">lineBottom</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">))</span>
+
+        <span class="n">lineTop</span> <span class="o">=</span> <span class="n">LinesAndPlanes</span><span class="o">.</span><span class="n">getLineEquation</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">motionproxy</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">topPoint</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">topPoint</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">tTop</span> <span class="o">=</span> <span class="n">LinesAndPlanes</span><span class="o">.</span><span class="n">intersectWithPlane</span><span class="p">(</span><span class="n">lineTop</span><span class="p">,</span> <span class="mi">2</span><span class="p">,(</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="o">-</span><span class="n">tBottom</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+
+        <span class="n">d_hor</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">tRight</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="n">tLeft</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">d_ver</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">tTop</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">-</span><span class="n">tBottom</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nao_object</span> <span class="o">==</span> <span class="s">&#39;Cup&#39;</span><span class="p">:</span>
+            <span class="n">d</span><span class="o">=</span><span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">pow</span><span class="p">(</span><span class="n">tRight</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="n">tLeft</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="mi">2</span><span class="p">)</span><span class="o">+</span><span class="nb">pow</span><span class="p">(</span><span class="n">tRight</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">-</span><span class="n">tLeft</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="mi">2</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">offset_x</span> <span class="o">=</span> <span class="n">d_hor</span><span class="o">/</span><span class="mi">2</span>
+            <span class="n">offset_z</span> <span class="o">=</span> <span class="n">d_ver</span><span class="o">/</span><span class="mi">2</span>
+            <span class="n">d</span> <span class="o">=</span> <span class="n">d_ver</span>
+
+        <span class="k">print</span><span class="p">(</span><span class="s">&#39;Showing 3D points&#39;</span><span class="p">)</span>
+        <span class="k">print</span> <span class="p">(</span><span class="s">&#39;Left point : &#39;</span><span class="p">,</span> <span class="n">tLeft</span><span class="p">)</span>
+        <span class="k">print</span> <span class="p">(</span><span class="s">&#39;Right point : &#39;</span><span class="p">,</span> <span class="n">tRight</span><span class="p">)</span>
+        <span class="k">print</span> <span class="p">(</span><span class="s">&#39;Bottom point : &#39;</span><span class="p">,</span> <span class="n">tBottom</span><span class="p">)</span>
+        <span class="k">print</span> <span class="p">(</span><span class="s">&#39;Top point : &#39;</span><span class="p">,</span> <span class="n">tTop</span><span class="p">)</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&#39;Showing object dimensions&#39;</span><span class="p">)</span>
+        <span class="k">print</span> <span class="p">(</span><span class="s">&#39;Object height : &#39;</span><span class="p">,</span> <span class="n">d_ver</span><span class="p">)</span>
+        <span class="k">print</span> <span class="p">(</span><span class="s">&#39;Object width : &#39;</span><span class="p">,</span> <span class="n">d_hor</span><span class="p">)</span>
+        <span class="c"># postavljanje tocke hvatista ovisno o predmetu, potrebni su odredeni pomaci</span>
+        <span class="n">grabPoint</span><span class="o">=</span><span class="bp">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nao_object</span> <span class="o">==</span> <span class="s">&#39;Cup&#39;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">grabPoint</span><span class="o">=</span><span class="n">LinesAndPlanes</span><span class="o">.</span><span class="n">planePlaneIntersection</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">motionproxy</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">,</span><span class="n">d</span><span class="p">,</span><span class="n">grabPointImage</span><span class="p">,</span><span class="n">bottomPoint</span><span class="p">)</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&#39;Grab point: &#39;</span><span class="p">,</span> <span class="n">grabPoint</span><span class="p">)</span>
+            <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">grabPoint</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">grabPoint</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">&gt;</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">h</span> <span class="o">+</span> <span class="mf">0.07</span><span class="p">)):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">grabPoint</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">h</span> <span class="o">+</span> <span class="mf">0.06</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&#39;Grab point corrected: &#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">grabPoint</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">grabPoint</span> <span class="o">=</span> <span class="p">[</span><span class="n">tBottom</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="n">offset_x</span><span class="p">,</span> <span class="n">tBottom</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">tBottom</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">+</span><span class="n">offset_z</span><span class="p">]</span>
+        <span class="n">saying</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
+        <span class="c"># ako predmet nije prevelik za robota da ga primi, izvrsava se odredivanje ruke s kojom ce robot primiti predmet</span>
+        <span class="c"># te poziv funkcije za prihvacanje predmeta</span>
+        <span class="k">if</span> <span class="n">d</span><span class="o">&lt;</span><span class="n">maxGrabDiameter</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">direction</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">grabPoint</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">direction</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">direction</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="k">print</span> <span class="p">(</span><span class="s">&#39;Grab point: &#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">grabPoint</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">direction</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">grab_direction</span> <span class="o">=</span> <span class="s">&#39;L&#39;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">grab_number</span><span class="o">=</span> <span class="mi">1</span>
+                <span class="k">print</span> <span class="p">(</span><span class="s">&#39;Direction: left&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">grab_direction</span> <span class="o">=</span> <span class="s">&#39;R&#39;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">grab_number</span>  <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&#39;Direction: right&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">diagnostic</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">print</span> <span class="p">(</span><span class="s">&#39;ako je dijagnostika 1&#39;</span><span class="p">)</span>
+            <span class="c"># dijagnosticna provjera tocke hvatista i ruke s kojom ce robot primiti predmet, potrebna potvrda da</span>
+            <span class="c"># su tocke dobre</span>
+                <span class="n">stsel</span><span class="o">=</span><span class="nb">input</span><span class="p">(</span><span class="s">&#39;Does this look OK to you (1 = yes / 0 = no)? &#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">stsel</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="n">stsel</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tts</span><span class="o">.</span><span class="n">say</span><span class="p">(</span><span class="s">&#39;I see how to grab the object&#39;</span><span class="p">)</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">grab</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">back_to_initial</span> <span class="o">=</span> <span class="bp">True</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">initial</span><span class="p">()</span>
+                <span class="k">return</span> <span class="bp">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&#39;The object is too large to grab&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">mute</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tts</span><span class="o">.</span><span class="n">say</span><span class="p">(</span><span class="s">&#39;The object is too large to grab&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">back_to_initial</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">initial</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="Fsm.object_manipulation"><a class="viewcode-back" href="../index.html#NAO_Fsm_temp.Fsm.object_manipulation">[docs]</a>    <span class="k">def</span> <span class="nf">object_manipulation</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Responsible for all of object manipulation NAO has to do.</span>
+<span class="sd">        This function uses data from previous state and makes NAO grab object (function Grab), do the gesture, and</span>
+<span class="sd">        put object back to its place (function putBack).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state_config</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s">&quot;State info&quot;</span><span class="p">,</span> <span class="s">&quot;state&quot;</span><span class="p">,</span> <span class="s">&quot;Object manipulation&quot;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state_file</span><span class="p">,</span> <span class="s">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">configfile</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state_config</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">configfile</span><span class="p">)</span>
+
+        <span class="n">manipulation</span> <span class="o">=</span> <span class="n">objectManipulation</span><span class="o">.</span><span class="n">ManipulationClass</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">motionproxy</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nao_object</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">grab_number</span><span class="p">,</span>
+                                                            <span class="bp">self</span><span class="o">.</span><span class="n">grabPoint</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">memory</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">postureproxy</span><span class="p">,</span>
+                                                            <span class="bp">self</span><span class="o">.</span><span class="n">grab_direction</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">mute</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">grab_direction</span> <span class="o">==</span> <span class="s">&#39;R&#39;</span><span class="p">:</span>
+                <span class="n">hand</span> <span class="o">=</span> <span class="s">&#39;right&#39;</span>
+            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">grab_direction</span> <span class="o">==</span> <span class="s">&#39;L&#39;</span><span class="p">:</span>
+                <span class="n">hand</span> <span class="o">=</span> <span class="s">&#39;left&#39;</span>
+            <span class="n">saying</span> <span class="o">=</span> <span class="s">&#39;Grabbing a &#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nao_object</span> <span class="o">+</span> <span class="s">&#39; with&#39;</span> <span class="o">+</span> <span class="n">hand</span> <span class="o">+</span> <span class="s">&#39; hand&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tts</span><span class="o">.</span><span class="n">say</span><span class="p">(</span><span class="n">saying</span><span class="p">)</span>
+    <span class="c"># poziv funkcije Grab kojom se vrsi kretanje do tocke hvatista te samo hvatanje</span>
+        <span class="n">work</span> <span class="o">=</span> <span class="n">manipulation</span><span class="o">.</span><span class="n">objectAction</span><span class="p">(</span><span class="s">&quot;Grab&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">work</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">None</span>
+    <span class="c"># ovisno o tome koji predmet je robot primio zvrsava se odgovarajuca gesta</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nao_object</span> <span class="o">==</span> <span class="s">&#39;Cup&#39;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">behaviour</span> <span class="o">=</span> <span class="s">&#39;drink&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">grab_direction</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">behaviour</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nao_object</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">grab_direction</span><span class="p">)</span>
+        <span class="k">print</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">behaviour</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">behaveproxy</span><span class="o">.</span><span class="n">runBehavior</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">behaviour</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">behaviour</span> <span class="o">==</span> <span class="s">&#39;drink&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">grab_direction</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">behaviour</span> <span class="o">=</span> <span class="s">&#39;drink&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Gesture_robot</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nao_object</span>
+
+        <span class="n">test</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">memory</span><span class="o">.</span><span class="n">getData</span><span class="p">(</span><span class="s">&#39;ObjectGrabber&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">test</span><span class="p">:</span>
+            <span class="n">manual_break</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="k">return</span> <span class="bp">None</span>
+        <span class="c"># nakon izvodenja geste robot predmet vraca natrag na mjesto</span>
+        <span class="c">#if not self.mute:</span>
+        <span class="c">#    self.tts.say(&#39;I have to put the object back&#39;)</span>
+        <span class="n">work</span> <span class="o">=</span> <span class="n">manipulation</span><span class="o">.</span><span class="n">objectAction</span><span class="p">(</span><span class="s">&quot;putBack&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">work</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">track</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="Fsm.object_tracking"><a class="viewcode-back" href="../index.html#NAO_Fsm_temp.Fsm.object_tracking">[docs]</a>    <span class="k">def</span> <span class="nf">object_tracking</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Stars object tracking that is used to detect objects trajectory and evaluate if it&#39;s trajectory</span>
+<span class="sd">        is similar to some of defined gestures.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">postureproxy</span><span class="o">.</span><span class="n">goToPosture</span><span class="p">(</span><span class="s">&quot;StandInit&quot;</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">motionproxy</span><span class="o">.</span><span class="n">killAll</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state_config</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state_file</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state_config</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s">&quot;State info&quot;</span><span class="p">,</span> <span class="s">&quot;state&quot;</span><span class="p">,</span> <span class="s">&quot;Object tracking&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state_config</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s">&quot;State info&quot;</span><span class="p">,</span> <span class="s">&quot;start_tracking&quot;</span><span class="p">,</span> <span class="s">&quot;1&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state_config</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s">&quot;State info&quot;</span><span class="p">,</span> <span class="s">&quot;stop_tracking&quot;</span><span class="p">,</span> <span class="s">&quot;0&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state_config</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s">&quot;State info&quot;</span><span class="p">,</span> <span class="s">&quot;end&quot;</span><span class="p">,</span> <span class="s">&quot;0&quot;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state_file</span><span class="p">,</span> <span class="s">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">configfile</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state_config</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">configfile</span><span class="p">)</span>
+
+        <span class="k">print</span> <span class="p">(</span><span class="s">&quot;starting gesture recognition&quot;</span><span class="p">)</span>
+
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="n">os</span><span class="o">.</span><span class="n">system</span><span class="p">(</span><span class="s">&#39;python recognition_temp.py Config.ini&#39;</span><span class="p">)</span>
+
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">myBroker</span> <span class="o">=</span> <span class="n">ALBroker</span><span class="p">(</span><span class="s">&quot;myBroker&quot;</span><span class="p">,</span> <span class="s">&quot;0.0.0.0&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">IP</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">PORT</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">back_to_initial</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initial</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="Fsm.identifyGrabPoint"><a class="viewcode-back" href="../index.html#NAO_Fsm_temp.Fsm.identifyGrabPoint">[docs]</a>    <span class="k">def</span> <span class="nf">identifyGrabPoint</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Identifies grab point on objects image.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c">#binaryImage=NaoImageProcessing.histThresh(image,objectColor, diagnostic) # dobivanje binarne slike</span>
+        <span class="n">imageTmp</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">medianBlur</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">camera</span><span class="o">.</span><span class="n">image</span><span class="p">,</span> <span class="mi">9</span><span class="p">)</span>
+        <span class="n">imageTmp</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">cvtColor</span><span class="p">(</span><span class="n">imageTmp</span><span class="p">,</span><span class="n">cv2</span><span class="o">.</span><span class="n">cv</span><span class="o">.</span><span class="n">CV_RGB2HSV</span><span class="p">)</span>
+        <span class="n">satImg</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">imageTmp</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">hueImg</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">imageTmp</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">/</span><span class="mf">180.0</span>
+        <span class="c">#retval, binaryImage = cv2.threshold(satImg, 150, 255, cv2.THRESH_BINARY)#+cv2.THRESH_OTSU)</span>
+        <span class="n">binaryImage</span> <span class="o">=</span> <span class="n">NaoImageProcessing</span><span class="o">.</span><span class="n">histThresh</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">camera</span><span class="o">.</span><span class="n">image</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">objectColor</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">diagnostic</span><span class="p">)</span>
+        <span class="n">cv2</span><span class="o">.</span><span class="n">imwrite</span><span class="p">(</span><span class="s">&#39;satmask.png&#39;</span><span class="p">,</span><span class="n">satImg</span><span class="p">)</span>
+        <span class="n">cv2</span><span class="o">.</span><span class="n">imwrite</span><span class="p">(</span><span class="s">&#39;object_segmented.png&#39;</span><span class="p">,</span><span class="n">binaryImage</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">cv2</span><span class="o">.</span><span class="n">countNonZero</span><span class="p">(</span><span class="n">binaryImage</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">1000</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&#39;No object segmented&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">None</span>
+
+        <span class="n">contours</span><span class="p">,</span> <span class="n">hierarchy</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">findContours</span><span class="p">(</span><span class="n">binaryImage</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">RETR_CCOMP</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">CHAIN_APPROX_SIMPLE</span><span class="p">)</span>
+
+        <span class="n">hierarchy</span> <span class="o">=</span> <span class="n">hierarchy</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">print</span> <span class="n">hierarchy</span>
+        <span class="n">areas</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">avgcolors</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">contours</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">hierarchy</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">3</span><span class="p">]</span><span class="o">&gt;=</span><span class="mi">0</span><span class="p">):</span>
+                <span class="n">areas</span><span class="o">+=</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">avgcolors</span><span class="o">+=</span><span class="p">[</span><span class="mf">0.5</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">tempDraw</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">hueImg</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+                <span class="n">cv2</span><span class="o">.</span><span class="n">drawContours</span><span class="p">(</span><span class="n">tempDraw</span><span class="p">,</span><span class="n">contours</span><span class="p">,</span><span class="n">i</span><span class="p">,</span> <span class="mi">255</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">area</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">tempDraw</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">tempDraw</span><span class="p">)])</span>
+                <span class="n">avgcolor</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">hueImg</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">tempDraw</span><span class="p">)])</span>
+                <span class="n">avgcolor</span><span class="o">/=</span><span class="n">area</span>
+                <span class="n">areas</span><span class="o">+=</span><span class="p">[</span><span class="n">area</span><span class="p">]</span>
+                <span class="n">avgcolors</span><span class="o">+=</span><span class="p">[</span><span class="nb">min</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">avgcolor</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">objectColor</span><span class="p">),</span> <span class="nb">abs</span><span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">avgcolor</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">objectColor</span><span class="p">))]</span>
+
+        <span class="n">bestColor</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">avgcolors</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">bestColor</span> <span class="o">&gt;</span> <span class="mf">0.2</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">None</span>
+        <span class="n">maxblobidx</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="n">maxarea</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">avgcolors</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">bestColor</span><span class="o">-</span><span class="n">avgcolors</span><span class="p">[</span><span class="n">i</span><span class="p">])</span><span class="o">&lt;</span><span class="mf">0.1</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">areas</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">&gt;</span><span class="n">maxarea</span><span class="p">:</span>
+                    <span class="n">maxblobidx</span><span class="o">=</span><span class="n">i</span>
+                    <span class="n">maxarea</span> <span class="o">=</span> <span class="n">areas</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">maxblobidx</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">None</span>
+        <span class="n">objectID</span><span class="o">=</span><span class="n">maxblobidx</span>
+
+        <span class="k">print</span> <span class="n">areas</span>
+        <span class="n">grabPoint</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">direction</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="n">objBox</span> <span class="o">=</span> <span class="n">NaoImageProcessing</span><span class="o">.</span><span class="n">getBB</span><span class="p">(</span><span class="n">contours</span><span class="p">[</span><span class="n">objectID</span><span class="p">])</span>
+        <span class="n">objectBB</span> <span class="o">=</span> <span class="n">objBox</span>
+
+        <span class="k">if</span> <span class="n">hierarchy</span><span class="p">[</span><span class="n">objectID</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span><span class="o">&lt;</span><span class="mi">0</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nao_object</span> <span class="o">!=</span> <span class="s">&#39;Cup&#39;</span><span class="p">:</span>
+            <span class="k">print</span> <span class="s">&#39;Assuming no hole in object&#39;</span>
+            <span class="c">#no holes in object</span>
+            <span class="n">objMoments</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">moments</span><span class="p">(</span><span class="n">contours</span><span class="p">[</span><span class="n">objectID</span><span class="p">])</span>
+            <span class="n">grabPoint</span> <span class="o">=</span> <span class="p">[</span><span class="n">objMoments</span><span class="p">[</span><span class="s">&#39;m01&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">objMoments</span><span class="p">[</span><span class="s">&#39;m00&#39;</span><span class="p">],</span> <span class="n">objMoments</span><span class="p">[</span><span class="s">&#39;m10&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">objMoments</span><span class="p">[</span><span class="s">&#39;m00&#39;</span><span class="p">]]</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">grabPoint</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">&gt;</span><span class="mi">320</span><span class="p">):</span>
+                <span class="n">direction</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">direction</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+            <span class="c">#wLeft=[objectBB[2], objectBB[1]]</span>
+            <span class="c">#wRight=[objectBB[2], objectBB[3]]</span>
+            <span class="c">#objectBottomPoint = [objectBB[2], (objectBB[1]+objectBB[3])/2.0]</span>
+            <span class="c">#objectTopPoint = [objectBB[0], (objectBB[1]+objectBB[3])/2.0]</span>
+
+            <span class="n">wLeft</span> <span class="o">=</span> <span class="p">[</span><span class="n">objectBB</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">objectBB</span><span class="p">[</span><span class="mi">3</span><span class="p">]]</span>
+            <span class="n">wRight</span> <span class="o">=</span> <span class="p">[</span><span class="n">objectBB</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">objectBB</span><span class="p">[</span><span class="mi">3</span><span class="p">]]</span>
+
+            <span class="n">objectBottomPoint</span> <span class="o">=</span> <span class="p">[(</span><span class="n">objectBB</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="n">objectBB</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span><span class="o">/</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">objectBB</span><span class="p">[</span><span class="mi">3</span><span class="p">]]</span>
+            <span class="n">objectTopPoint</span> <span class="o">=</span> <span class="p">[(</span><span class="n">objectBB</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="n">objectBB</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span><span class="o">/</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">objectBB</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+
+            <span class="n">cv2</span><span class="o">.</span><span class="n">rectangle</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">camera</span><span class="o">.</span><span class="n">image</span><span class="p">,(</span><span class="n">objectBB</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">objectBB</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="p">(</span><span class="n">objectBB</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">objectBB</span><span class="p">[</span><span class="mi">3</span><span class="p">]),</span> <span class="p">(</span><span class="mi">255</span><span class="p">,</span><span class="mi">255</span><span class="p">,</span><span class="mi">255</span><span class="p">))</span>
+            <span class="n">cv2</span><span class="o">.</span><span class="n">imwrite</span><span class="p">(</span><span class="s">&quot;asdf.png&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">camera</span><span class="o">.</span><span class="n">image</span><span class="p">)</span>
+
+            <span class="k">print</span><span class="p">(</span><span class="s">&#39;Showing image pixel points: &#39;</span><span class="p">)</span>
+            <span class="k">print</span> <span class="p">(</span><span class="s">&#39;Left point : &#39;</span><span class="p">,</span> <span class="n">wLeft</span><span class="p">)</span>
+            <span class="k">print</span> <span class="p">(</span><span class="s">&#39;Right point : &#39;</span><span class="p">,</span> <span class="n">wRight</span><span class="p">)</span>
+            <span class="k">print</span> <span class="p">(</span><span class="s">&#39;Bottom point : &#39;</span><span class="p">,</span> <span class="n">objectBottomPoint</span><span class="p">)</span>
+            <span class="k">print</span> <span class="p">(</span><span class="s">&#39;Top point : &#39;</span><span class="p">,</span> <span class="n">objectTopPoint</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">print</span> <span class="s">&#39;Hole detected&#39;</span>
+            <span class="n">hole</span> <span class="o">=</span> <span class="n">hierarchy</span><span class="p">[</span><span class="n">objectID</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span>
+            <span class="n">holeList</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">while</span> <span class="p">(</span><span class="n">hole</span><span class="o">&gt;=</span><span class="mi">0</span><span class="p">):</span>
+                <span class="n">holeList</span> <span class="o">+=</span> <span class="p">[</span><span class="n">hole</span><span class="p">]</span>
+                <span class="n">hole</span> <span class="o">=</span> <span class="n">hierarchy</span><span class="p">[</span><span class="n">hole</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nao_object</span> <span class="o">==</span> <span class="s">&#39;Cup&#39;</span><span class="p">:</span>
+                <span class="n">bestHole</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+                <span class="n">bestRatio</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="n">side</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">holeList</span><span class="p">:</span>
+                    <span class="n">holeBB</span> <span class="o">=</span> <span class="n">NaoImageProcessing</span><span class="o">.</span><span class="n">getBB</span><span class="p">(</span><span class="n">contours</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+                    <span class="p">[</span><span class="n">upDown</span><span class="p">,</span> <span class="n">leftRight</span><span class="p">]</span> <span class="o">=</span> <span class="n">NaoImageProcessing</span><span class="o">.</span><span class="n">cmpBB</span><span class="p">(</span><span class="n">objBox</span><span class="p">,</span> <span class="n">holeBB</span><span class="p">)</span>
+                    <span class="k">print</span> <span class="n">upDown</span><span class="p">,</span> <span class="n">leftRight</span>
+                    <span class="k">if</span> <span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">leftRight</span><span class="p">)</span> <span class="o">&gt;</span> <span class="nb">abs</span><span class="p">(</span><span class="n">upDown</span><span class="p">)):</span>
+                        <span class="k">if</span> <span class="p">(</span><span class="n">bestRatio</span><span class="o">&lt;</span><span class="nb">abs</span><span class="p">(</span><span class="n">leftRight</span><span class="p">)):</span>
+                            <span class="n">bestHole</span> <span class="o">=</span> <span class="n">i</span>
+                            <span class="n">bestRatio</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">leftRight</span><span class="p">)</span>
+                            <span class="n">side</span> <span class="o">=</span> <span class="n">leftRight</span>
+                <span class="k">if</span> <span class="n">bestHole</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                    <span class="k">print</span> <span class="s">&#39;Only bad holes detected, assuming no holes&#39;</span>
+                    <span class="n">cv2</span><span class="o">.</span><span class="n">rectangle</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">camera</span><span class="o">.</span><span class="n">image</span><span class="p">,(</span><span class="n">objectBB</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">objectBB</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="p">(</span><span class="n">objectBB</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">objectBB</span><span class="p">[</span><span class="mi">3</span><span class="p">]),</span> <span class="p">(</span><span class="mi">255</span><span class="p">,</span><span class="mi">255</span><span class="p">,</span><span class="mi">255</span><span class="p">))</span>
+                    <span class="n">cv2</span><span class="o">.</span><span class="n">imwrite</span><span class="p">(</span><span class="s">&quot;asdf.png&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">camera</span><span class="o">.</span><span class="n">image</span><span class="p">)</span>
+                    <span class="n">objMoments</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">moments</span><span class="p">(</span><span class="n">contours</span><span class="p">[</span><span class="n">objectID</span><span class="p">])</span>
+                    <span class="n">grabPoint</span> <span class="o">=</span> <span class="p">[</span><span class="n">objMoments</span><span class="p">[</span><span class="s">&#39;m10&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">objMoments</span><span class="p">[</span><span class="s">&#39;m00&#39;</span><span class="p">],</span> <span class="n">objMoments</span><span class="p">[</span><span class="s">&#39;m01&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">objMoments</span><span class="p">[</span><span class="s">&#39;m00&#39;</span><span class="p">]]</span>
+                    <span class="k">if</span> <span class="p">(</span><span class="n">grabPoint</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">&gt;</span><span class="mi">320</span><span class="p">):</span>
+                        <span class="n">direction</span> <span class="o">=</span> <span class="mi">1</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">direction</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+                    <span class="c">#wLeft=[objectBB[2], objectBB[1]]</span>
+                    <span class="c">#wRight=[objectBB[2], objectBB[3]]</span>
+                    <span class="c">#objectBottomPoint = [objectBB[2], (objectBB[1]+objectBB[3])/2.0]</span>
+                    <span class="c">#objectTopPoint = [objectBB[0], (objectBB[1]+objectBB[3])/2.0]</span>
+
+
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">holeBB</span> <span class="o">=</span> <span class="n">NaoImageProcessing</span><span class="o">.</span><span class="n">getBB</span><span class="p">(</span><span class="n">contours</span><span class="p">[</span><span class="n">bestHole</span><span class="p">])</span>
+                    <span class="n">cv2</span><span class="o">.</span><span class="n">rectangle</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">camera</span><span class="o">.</span><span class="n">image</span><span class="p">,(</span><span class="n">holeBB</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">holeBB</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="p">(</span><span class="n">holeBB</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">holeBB</span><span class="p">[</span><span class="mi">3</span><span class="p">]),</span> <span class="p">(</span><span class="mi">255</span><span class="p">,</span><span class="mi">255</span><span class="p">,</span><span class="mi">255</span><span class="p">))</span>
+                    <span class="n">cv2</span><span class="o">.</span><span class="n">rectangle</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">camera</span><span class="o">.</span><span class="n">image</span><span class="p">,(</span><span class="n">objectBB</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">objectBB</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="p">(</span><span class="n">objectBB</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">objectBB</span><span class="p">[</span><span class="mi">3</span><span class="p">]),</span> <span class="p">(</span><span class="mi">255</span><span class="p">,</span><span class="mi">255</span><span class="p">,</span><span class="mi">255</span><span class="p">))</span>
+                    <span class="n">cv2</span><span class="o">.</span><span class="n">imwrite</span><span class="p">(</span><span class="s">&quot;asdf.png&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">camera</span><span class="o">.</span><span class="n">image</span><span class="p">)</span>
+                    <span class="n">direction</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">copysign</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="n">side</span><span class="p">)</span>
+                    <span class="k">print</span> <span class="n">direction</span>
+                    <span class="k">if</span> <span class="p">(</span><span class="n">side</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">):</span>
+                        <span class="n">grabPoint</span> <span class="o">=</span> <span class="p">[(</span><span class="n">holeBB</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="o">+</span><span class="n">objBox</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span><span class="o">/</span><span class="mf">2.0</span><span class="p">,</span> <span class="p">(</span><span class="n">holeBB</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">+</span><span class="n">holeBB</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">/</span><span class="mf">2.0</span><span class="p">]</span>
+                        <span class="n">wLeft</span><span class="o">=</span><span class="p">[</span><span class="n">objectBB</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">holeBB</span><span class="p">[</span><span class="mi">3</span><span class="p">]]</span>
+                        <span class="n">wRight</span><span class="o">=</span><span class="p">[</span><span class="n">objectBB</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">objectBB</span><span class="p">[</span><span class="mi">3</span><span class="p">]]</span>
+                        <span class="n">objectBottomPoint</span> <span class="o">=</span> <span class="p">[</span><span class="n">objectBB</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="p">(</span><span class="n">holeBB</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="o">+</span><span class="n">objectBB</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span><span class="o">/</span><span class="mf">2.0</span><span class="p">]</span>
+                        <span class="n">objectTopPoint</span> <span class="o">=</span> <span class="p">[</span><span class="n">objectBB</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="p">(</span><span class="n">holeBB</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="o">+</span><span class="n">objectBB</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span><span class="o">/</span><span class="mf">2.0</span><span class="p">]</span>
+
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">grabPoint</span> <span class="o">=</span> <span class="p">[(</span><span class="n">holeBB</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="n">objBox</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="o">/</span><span class="mf">2.0</span><span class="p">,</span> <span class="p">(</span><span class="n">holeBB</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="n">holeBB</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span><span class="o">/</span><span class="mf">2.0</span><span class="p">]</span>
+                        <span class="n">wLeft</span><span class="o">=</span><span class="p">[</span><span class="n">objectBB</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">objectBB</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+                        <span class="n">wRight</span><span class="o">=</span><span class="p">[</span><span class="n">objectBB</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">holeBB</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+                        <span class="n">objectBottomPoint</span> <span class="o">=</span> <span class="p">[</span><span class="n">objectBB</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="p">(</span><span class="n">holeBB</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="n">objectBB</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="o">/</span><span class="mf">2.0</span><span class="p">]</span>
+                        <span class="n">objectTopPoint</span> <span class="o">=</span> <span class="p">[</span><span class="n">objectBB</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="p">(</span><span class="n">holeBB</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="n">objectBB</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="o">/</span><span class="mf">2.0</span><span class="p">]</span>
+
+        <span class="k">print</span> <span class="p">(</span><span class="s">&#39;Grab pixel point: &#39;</span><span class="p">,</span>  <span class="n">grabPoint</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">[</span><span class="n">grabPoint</span><span class="p">,</span> <span class="n">objectBottomPoint</span><span class="p">,</span> <span class="n">wLeft</span><span class="p">,</span> <span class="n">wRight</span><span class="p">,</span> <span class="n">direction</span><span class="p">,</span> <span class="n">objectTopPoint</span><span class="p">]</span>
+</div>
+    <span class="k">def</span> <span class="nf">shutdown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">cv2</span><span class="o">.</span><span class="n">destroyAllWindows</span><span class="p">()</span>
+        <span class="n">ObjectTracker</span><span class="o">.</span><span class="n">unload</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">behaveproxy</span><span class="o">.</span><span class="n">stopAllBehaviors</span><span class="p">()</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">postureproxy</span><span class="o">.</span><span class="n">goToPosture</span><span class="p">(</span><span class="s">&quot;StandInit&quot;</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">motionproxy</span><span class="o">.</span><span class="n">killAll</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">myBroker</span><span class="o">.</span><span class="n">shutdown</span><span class="p">()</span>
+        <span class="c">#self.alvideoproxy.unsubscribeAllInstances(self.video)</span>
+        <span class="nb">exit</span><span class="p">()</span>
+
+
+</div>
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">nao</span> <span class="o">=</span> <span class="n">Fsm</span><span class="p">()</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">nao</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="n">nao</span><span class="o">.</span><span class="n">shutdown</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../index.html">nao-fsm 2.0 documentation</a> &raquo;</li>
+          <li><a href="index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2016, Luka Malovan.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>
