@@ -269,25 +269,25 @@ class Fsm():
         self.camProxy = ALProxy("ALVideoDevice", self.IP, self.PORT)
 
         # getting data from configuration file
-        self.object_is = config.get ('Settings', 'Object')
+        self.object_is = config.get ('Grab settings', 'Object')
 
-        self.volume = config.get('Settings', 'Volume')
+        self.volume = config.get('Grab settings', 'Volume')
         self.volume = int(float(self.volume))
         self.sound.setOutputVolume(self.volume)
 
-        self.mute = config.get ('Settings', 'Mute')
+        self.mute = config.get ('Grab settings', 'Mute')
         self.mute = int(self.mute)
 
-        self.diagnostic = config.get ('Settings', 'Diagnostics')
+        self.diagnostic = config.get ('Grab settings', 'Diagnostics')
         self.diagnostic = int(float(self.diagnostic))
 
-        self.h = config.get ('Settings', 'Height')
+        self.h = config.get ('Grab settings', 'Height')
         self.h = float(self.h)
 
-        self.program_count = config.get('Settings', 'Counter_program')
+        self.program_count = config.get('Grab settings', 'Counter_program')
         self.program_count = int(float(self.program_count))
 
-        self.behaviour_count = config.get('Settings', 'Counter')
+        self.behaviour_count = config.get('Grab settings', 'Counter')
         self.behaviour_count = int(float(self.behaviour_count))
 
         # setting up state machine

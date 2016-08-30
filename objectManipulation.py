@@ -55,17 +55,17 @@ class ManipulationClass():
             sideOffset_app= self.grab_number * 0.04
             rotation= (-1) * self.grab_number * 1.57
             heightOffset_lift = 0.05
-            xOffset_lift =0.02
-            xOffset_grab = 0.02
+            xOffset_lift =0.0
+            xOffset_grab = 0.0
             heightOffset_grab = 0.0
             heightOffset_app = 0.0
         else:
-            if self.Nao_object == 'Duck':
+            if self.Nao_object == 'Frog':
                 heightOffset_app = 0.12
                 heightOffset_lift = 0.12
                 heightOffset_grab = 0.0
                 rotation = 0.0
-                xOffset_grab = 0.03
+                xOffset_grab = 0.0
             else:
                 if self.Nao_object == 'Plane':
                     heightOffset_app = 0.12
@@ -76,7 +76,7 @@ class ManipulationClass():
 
 
         approachPoint = [self.grabPoint[0] + xOffset_app, self.grabPoint[1] + sideOffset_app, self.grabPoint[2]+heightOffset_app + 0.02, rotation, 0, 0]
-        grabPoint = [self.grabPoint[0] + xOffset_grab, self.grabPoint[1] + sideOffset_grab, self.grabPoint[2] + heightOffset_grab, rotation, 0, 0]
+        grabPoint = [self.grabPoint[0] + xOffset_grab, self.grabPoint[1] + sideOffset_grab, self.grabPoint[2] + heightOffset_grab - 0.01, rotation, 0, 0]
         liftPoint = [self.grabPoint[0] + xOffset_lift, self.grabPoint[1] + sideOffset_lift, self.grabPoint[2] + heightOffset_lift, rotation, 0, 0]
 
         if action == "Grab":
@@ -104,9 +104,9 @@ class ManipulationClass():
 
         elif action == "putBack":
             grabPoint2 = [self.grabPoint[0] + xOffset_grab + 0.1, self.grabPoint[1] + sideOffset_grab, self.grabPoint[2] + heightOffset_grab, rotation, 0, 0]
-            grabPoint3 = [self.grabPoint[0] + xOffset_grab + 0.05, self.grabPoint[1] + sideOffset_grab + self.grab_number * 0.15, self.grabPoint[2] + heightOffset_grab, rotation, 0, 0]
+            grabPoint3 = [self.grabPoint[0] + xOffset_grab + 0.05, self.grabPoint[1] + sideOffset_grab + self.grab_number * 0.15, self.grabPoint[2] + 0.10, rotation, 0, 0]
             self.motionproxy.setAngles(handName, 0.0, 0.3)
-            self.motionproxy.positionInterpolation(chainName, 2, grabPoint, mask, 2, True)
+            #self.motionproxy.positionInterpolation(chainName, 2, grabPoint, mask, 2, True)
             self.motionproxy.positionInterpolation(chainName, 2, grabPoint2, mask, 2, True)
             time.sleep(0.5)
             self.motionproxy.setAngles(handName, 1.0, 0.5)

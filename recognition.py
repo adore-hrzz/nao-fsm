@@ -1,5 +1,5 @@
 # object tracking algorithm with trajectory points plotting on
-# video stream window
+# video stream window and gesture recognition
 
 from naoqi import ALProxy, ALBroker, ALModule
 import time
@@ -7,7 +7,6 @@ from vision_definitions import kVGA, kBGRColorSpace
 import cv2 as opencv
 import numpy as np
 import random
-
 from ghmm import *
 import ConfigParser, argparse
 import training
@@ -16,7 +15,7 @@ global ObjectTracker
 
 # object tracking module
 class ObjectTrackerModule(ALModule):
-    def __init__(self, name):
+    def __init__(self, name, myBroker):
         ALModule.__init__(self, name)
         self.data = 0
         self.behaviors = []
@@ -169,255 +168,256 @@ def nao_image_getter(alvideoproxy, video):
     img = np.asarray(imgheader[:, :])
     return img
 
+class GestureRecognitionClass():
+    def __init__(self):
+        self.IP = "192.168.1.105" # set NAO IP adress
+        self.PORT = 9559
+        self.myBroker =  ALBroker("myBroker", "0.0.0.0", 0, self.IP, self.PORT)
 
-if __name__ == '__main__':
-    # initializing proxies and other required parameters
-    IP = "192.168.1.105"
-    PORT = 9559
-    myBroker = ALBroker("myBroker", "0.0.0.0", 0, IP, PORT)
+        self.alvideoproxy = ALProxy("ALVideoDevice", self.IP, self.PORT)
+        self.video = self.alvideoproxy.subscribeCamera("video", 0, kVGA, kBGRColorSpace, 30)
+        self.motionproxy=ALProxy('ALMotion', self.myBroker)
 
-    #opencv.namedWindow("Robot camera feed")
-    # get sample image to detect size
-    alvideoproxy = ALProxy("ALVideoDevice", IP, PORT)
+        self.tts = ALProxy('ALTextToSpeech', self.myBroker)
+        self.behaveproxy = ALProxy('ALBehaviorManager', self.myBroker)
+        self.postureproxy = ALProxy('ALRobotPosture', self.myBroker)
+        self.navigationProxy = ALProxy('ALNavigation', self.myBroker)
+        self.sound = ALProxy('ALAudioDevice', self.myBroker)
+        self.memory = ALProxy('ALMemory', self.myBroker)
+        self.memory.insertData('ObjectGrabber', int(0))
+        self.camProxy = ALProxy("ALVideoDevice", self.IP, self.PORT)
+        self.postureproxy.goToPosture("StandInit", 0.8)
+        # Reading Config File
+        cfile = "Config.ini"
+        config = ConfigParser.ConfigParser()
+        config.read(cfile)
+        set_num = config.get("Settings", "Dataset")
+        new_set = int(set_num) + 1
 
-    video = alvideoproxy.subscribeCamera("video", 0, kVGA, kBGRColorSpace, 30)
+        self.path = config.get("Settings", "path")
+        self.filename = 'gest' + str(new_set) # self.filename of a file where trajectory whill be saved
 
-    motionproxy=ALProxy('ALMotion', myBroker)
-    motionproxy.killAll()
-    tts = ALProxy('ALTextToSpeech', myBroker)
-    behaveproxy = ALProxy('ALBehaviorManager', myBroker)
-    postureproxy = ALProxy('ALRobotPosture', myBroker)
-    navigationProxy = ALProxy('ALNavigation', myBroker)
-    sound = ALProxy('ALAudioDevice', myBroker)
-    memory = ALProxy('ALMemory', myBroker)
-    memory.insertData('ObjectGrabber', int(0))
-    camProxy = ALProxy("ALVideoDevice", IP, PORT)
+        config.set("Settings", "Dataset", str(new_set))
+        with open(cfile, 'wb') as configfile:
+            config.write(configfile)
 
-    postureproxy.goToPosture("StandInit", 0.8)
-    motionproxy.setAngles('HeadPitch', 0, 0.5)
-    time.sleep(0.5)
-    motionproxy.setAngles('HeadYaw', 0, 0.5)
-    time.sleep(0.5)
-    motionproxy.setStiffnesses("Head", 1.0)
+        self.motionproxy.killAll()
+        self.postureproxy.goToPosture("StandInit", 0.8)
+        self.motionproxy.setAngles('HeadPitch', 0, 0.5)
+        time.sleep(0.5)
+        self.motionproxy.setAngles('HeadYaw', 0, 0.5)
+        time.sleep(0.5)
+        self.cluster_data = []
+        self.vars = []
 
-    cfile = "Config.ini"
-    config = ConfigParser.ConfigParser()
-    config.read(cfile)
-    set_num = config.get("Grab settings", "Dataset")
+    def trackingInit(self):
+        self.iteration_count = 500
+        self.measurement_standard_deviation = np.std([random.random() * 2.0 - 1.0 for j in xrange(self.iteration_count)])
 
-    new_set = int(set_num) + 1
+        self.process_variance = 1e-1  # greater = faster, worse estimation, lower = slower, better estimation
 
-    filename = 'gest' + str(new_set)
+        self.estimated_measurement_variance = self.measurement_standard_deviation ** 2  # 0.05 ** 2
+        self.kalman_filter = KalmanFilter(self.process_variance, self.estimated_measurement_variance)
+        self.posteri_estimate_graph = []
 
-    config.set("Grab settings", "Dataset", str(new_set))
+        self.image_position = np.zeros(shape=2)
+        self.pos_vec = np.zeros(shape=2)
+        self.i = 0
+        self.log = open(self.filename + ".txt", "w") ####################################################################################
+        self.estimation = np.zeros(shape=(1, 2))
+        self.points_x = []
+        self.points_y = []
+        self.gesture_started = False
+        self.gesture_complete = False
 
-    with open(cfile, 'wb') as configfile:
-        config.write(configfile)
-    # try object tracking
-    try:
-        # kalman filter preparations
-
-        iteration_count = 500
-        measurement_standard_deviation = np.std([random.random() * 2.0 - 1.0 for j in xrange(iteration_count)])
-
-        process_variance = 1e-1  # greater = faster, worse estimation, lower = slower, better estimation
-
-        estimated_measurement_variance = measurement_standard_deviation ** 2  # 0.05 ** 2
-        kalman_filter = KalmanFilter(process_variance, estimated_measurement_variance)
-        posteri_estimate_graph = []
-        # initilazing tracking
-        ObjectTracker = ObjectTrackerModule("ObjectTracker")
-        ObjectTracker.load("/home/nao/ImageSets/cup", 'Cup')
+        global ObjectTracker
+        ObjectTracker = ObjectTrackerModule("ObjectTracker", self.myBroker)
+        #ObjectTracker.load("/home/nao/ImageSets/cup", 'Cup')
+        ObjectTracker.load("/home/nao/ImageSets/frog", 'Frog')
         ObjectTracker.gestureProxy.stopTracker()
-        time.sleep(2)
-        tts.say("Now you repeat the gesture")
-        time.sleep(2)
         print ('Starting tracker...')
         ObjectTracker.startTracker(0)
-        image_position = np.zeros(shape=2)
-        pos_vec = np.zeros(shape=2)
-        i = 0
-        log = open(filename + ".txt", "w") ####################################################################################
-        estimation = np.zeros(shape=(1, 2))
-        # while loop where tracking is executed
-        while len(estimation) < 20:
+
+        self.tts.say("Now you repeat the gesture")
+
+        return 1
+
+    def trackingLoop(self):
+        gesture_started = False
+        while True:
             # if object is detected do data analysis
-            image = nao_image_getter(alvideoproxy, video)
+            image = nao_image_getter(self.alvideoproxy, self.video)
             if ObjectTracker.data:
                 # angular position data from micro event
                 pos_data = np.asarray(ObjectTracker.data)
-                print "data: "
-                print ObjectTracker.data
+                #print "data: "
+                #print ObjectTracker.data
                 # calculating image position based on angular position of object
-                image_position = camProxy.getImagePositionFromAngularPosition(0, [pos_data[0], pos_data[1]])
+                image_position = self.camProxy.getImagePositionFromAngularPosition(0, [pos_data[0], pos_data[1]])
                 image_position = np.asarray(image_position)
-                print image_position
+
                 # applying kalman filter on image position data
-                kalman_filter.input_latest_noisy_measurement(image_position)
-                posteri_estimate_graph.append(kalman_filter.get_latest_estimated_measurement())
+                self.kalman_filter.input_latest_noisy_measurement(image_position)
+                self.posteri_estimate_graph.append(self.kalman_filter.get_latest_estimated_measurement())
                 # separating estimated values for easier plotting
-                estimation = np.zeros(shape=(len(posteri_estimate_graph), 2))
-                for i in range(0, len(posteri_estimate_graph)):
-                    temp2 = posteri_estimate_graph[i]
+                estimation = np.zeros(shape=(len(self.posteri_estimate_graph), 2))
+                index = np.zeros(len(self.posteri_estimate_graph))
+                for i in range(0, len(self.posteri_estimate_graph)):
+                    temp2 = self.posteri_estimate_graph[i]
                     estimation[i, 0] = temp2[0]
                     estimation[i, 1] = temp2[1]
-                # video frame size
 
                 height, width = image.shape[:2]
+                if len(estimation) > 3:
+                    start_pos_y = estimation[2,1] * height + 15
 
-                opencv.ellipse(image, (int(estimation[-1, 0] * width), int(estimation[-1, 1] * height + 15)),
-                               (70, 90), -180, 0, 360, (255, 0, 0), 2)
-                # plotting trajectory points
-                for j in range(2, len(estimation)):
-                    opencv.circle(image, (int(estimation[j, 0] * width), int(estimation[j, 1] * height + 15)), 5, (0, 0, 255), -1)
+                    opencv.ellipse(image, (int(estimation[-1, 0] * width), int(estimation[-1, 1] * height + 15)),
+                                       (70, 90), -180, 0, 360, (255, 0, 0), 2)
+
+                    if (start_pos_y - (estimation[-1,1] * height + 15)) > 10:
+                        gesture_started = True
+                        self.points_x.append(int(estimation[-1,0]* width))
+                        self.points_y.append(int(estimation[-1,1]* height + 15))
+                        for j in range(0, len(self.points_x)):
+                            opencv.circle(image, (int(self.points_x[j]), int(self.points_y[j])), 5, (0, 0, 255), -1)
+
+                    elif (start_pos_y - (estimation[-1,1] * height + 15)) <= 10 and gesture_started == True:
+                        break
 
             opencv.putText(image, "Object", (10, 70), opencv.FONT_HERSHEY_SIMPLEX, 3, (0, 255, 0), 5)
             opencv.putText(image, "tracking", (10, 140), opencv.FONT_HERSHEY_SIMPLEX, 3, (0, 255, 0), 5)
-
-            #opencv.putText(image, "Object tracking", (100, 100), opencv.FONT_HERSHEY_DUPLEX, 2.0, (0, 0, 255))
-
             opencv.imshow("Robot camera feed", image)
-            #opencv.imwrite("Slike/Tracking/image" + str(len(estimation)) + ".png", image)
 
             if opencv.waitKey(10) == 27:
                 break
+        return 1
 
-
-    # if try doesn't work for any reason program breaks and stops after
-    # stopping video subscribe and other things
-    finally:
-        n = len(estimation)
+    def trackingFinal(self):
+        n = len(self.points_x) - 1
         for i in range(0, n):
-            log.write(str(estimation[i, 0])+", "+str(estimation[i, 1])+"\n")
-        log.close()
+            self.log.write(str(self.points_x[i]) + ", " + str(self.points_y[i])+"\n")
+        self.log.close()
+
+        #self.shutDown()
+        return 1
+
+    def shutDown(self):
         ObjectTracker.gestureProxy.stopTracker()
         print('Ending tracking...')
         time.sleep(1)
-        alvideoproxy.unsubscribe(video)
+        self.alvideoproxy.unsubscribe(self.video)
         opencv.destroyAllWindows()
         ObjectTracker.unload()
-        behaveproxy.stopAllBehaviors()
+        self.behaveproxy.stopAllBehaviors()
         time.sleep(1.0)
-        motionproxy.killAll()
-        myBroker.shutdown()
-            # definiranje varijabli ##########################################
-        cluster_data = []
-        vars = []
-        ##################################################################
-        diff1 = 0
-        diff2 = 0
-        diff3 = 0
-        diff4 = 0
-        for i in range(1, 5):
-            if i == 1:
-                f = open('cup_file.txt', 'r')
-                state_num = int(f.readline())
-                output_num = int(f.readline())
-                gesture_treshold = f.readline()
-                f.close()
+        self.motionproxy.killAll()
+        self.myBroker.shutdown()
 
-                #[sigma, A, B, pi] = trening.matrices(state_num, output_num)
-                #m = HMMFromMatrices(sigma, DiscreteDistribution(sigma), A, B, pi)
+    def readData(self):
+        self.state_num = int(self.f.readline())
+        self.output_num = int(self.f.readline())
+        self.gesture_treshold = self.f.readline()
+        self.f.close()
+        return 1
 
-                cluster_data = training.cluster(filename + ".txt", output_num)
-                #HMMfactory = HMMOpenFactory(GHMM_FILETYPE_XML)
-                m = HMMOpen("cup_m_file.xml")
-                print m
-                sigma = IntegerRange(0, output_num)
+    def costFunction(self):
+        n = len(self.points_x)
+        cost_cup = 0
+        cost_frog = 0
+        cost_plane = 0
+        cost_neg1 = 0
+        cost_neg2 = 0
+        max_x = 0
+        min_x = 600
+        idx_max = 0
+        idx_min = 0
 
-                test_seq = EmissionSequence(sigma, cluster_data.tolist())
-                print test_seq
-                print m.viterbi(test_seq)
-                print gesture_treshold
-                diff1 = abs(abs(float(m.viterbi(test_seq)[1])) - abs(float(gesture_treshold)))
-                print "Diff 1: "
-                print diff1
+        # finding start x position and final x position, if they are close, then it is not plane or frog gesture
+        x_diff = abs(self.points_x[0] - self.points_x[n-1])
+        if x_diff < 35:
+            cost_frog = 10
+            cost_plane = 10
+        elif x_diff > 40:
+            cost_cup = 10
+            cost_neg1 = 10
+            cost_neg2 = 10
+        # finding max x position
+        for i in range(0, n):
+            x = self.points_x[i]
+            if  (x > max_x):
+                max_x = self.points_x[i]
+                idx_max = i
+            elif (x < min_x):
+                min_x = self.points_x[i]
+                idx_min = i
+        # if max x position is not far from start x position, then it is drinking gesture
+        # else it is spilling
+        if abs(abs(self.points_x[idx_max]) - abs(self.points_x[idx_min])) < 50:
+            cost_neg1 = 10
+            cost_neg2 = 10
+        else:
+            cost_cup = 10
+
+        self.cost_list = [cost_cup, cost_frog, cost_neg1, cost_neg2, cost_plane]
+        print self.cost_list
+
+    def recognitionFun(self):
+        # beginning gesture recognition
+        self.costFunction()
+        diff = [0, 0, 0, 0, 0]
+        for i in range(0,5):
+            if i == 0:
+                self.f = open(self.path + '/trained/drink/gesture_file.txt', 'r')
+                self.m = HMMOpen(self.path + "/trained/drink/m_file.xml")
+                self.readData()
+            elif i == 1:
+                self.f = open(self.path + '/trained/frog/gesture_file.txt', 'r')
+                self.m = HMMOpen(self.path + "/trained/frog/m_file.xml")
+                self.readData()
             elif i == 2:
-                f = open('roll_file.txt', 'r')
-                state_num = int(f.readline())
-                output_num = int(f.readline())
-                gesture_treshold = f.readline()
-                f.close()
-
-                #[sigma, A, B, pi] = trening.matrices(state_num, output_num)
-                #m = HMMFromMatrices(sigma, DiscreteDistribution(sigma), A, B, pi)
-
-                cluster_data = training.cluster(filename + ".txt", output_num)
-                #HMMfactory = HMMOpenFactory(GHMM_FILETYPE_XML)
-                m = HMMOpen("roll_m_file.xml")
-                print m
-                sigma = IntegerRange(0, output_num)
-
-                test_seq = EmissionSequence(sigma, cluster_data.tolist())
-                print test_seq
-                print m.viterbi(test_seq)
-                print gesture_treshold
-                diff2 = abs(abs(float(m.viterbi(test_seq)[1])) - abs(float(gesture_treshold)))
-                print "Diff 2: "
-                print diff2
+                self.f = open(self.path + '/trained/neg1/gesture_file.txt', 'r')
+                self.m = HMMOpen(self.path + "/trained/neg1/m_file.xml")
+                self.readData()
             elif i == 3:
-                f = open('sl_file.txt', 'r')
-                state_num = int(f.readline())
-                output_num = int(f.readline())
-                gesture_treshold = f.readline()
-                f.close()
-
-                #[sigma, A, B, pi] = trening.matrices(state_num, output_num)
-                #m = HMMFromMatrices(sigma, DiscreteDistribution(sigma), A, B, pi)
-
-                cluster_data = training.cluster(filename + ".txt", output_num)
-                #HMMfactory = HMMOpenFactory(GHMM_FILETYPE_XML)
-                m = HMMOpen("sl_m_file.xml")
-                print m
-                sigma = IntegerRange(0, output_num)
-
-                test_seq = EmissionSequence(sigma, cluster_data.tolist())
-                print test_seq
-                print m.viterbi(test_seq)
-                print gesture_treshold
-                diff3 = abs(abs(float(m.viterbi(test_seq)[1])) - abs(float(gesture_treshold)))
-                print "Diff 3: "
-                print diff3
+                self.f = open(self.path + '/trained/neg2/gesture_file.txt', 'r')
+                self.m = HMMOpen(self.path + '/trained/neg2/m_file.xml')
+                self.readData()
             elif i == 4:
-                f = open('sr_file.txt', 'r')
-                state_num = int(f.readline())
-                output_num = int(f.readline())
-                gesture_treshold = f.readline()
-                f.close()
+                self.f = open(self.path + '/trained/plane1/gesture_file.txt', 'r')
+                self.m = HMMOpen(self.path + "/trained/plane1/m_file.xml")
+                self.readData()
 
-                #[sigma, A, B, pi] = trening.matrices(state_num, output_num)
-                #m = HMMFromMatrices(sigma, DiscreteDistribution(sigma), A, B, pi)
+            cluster_data = training.cluster(self.filename + ".txt", self.output_num)
+            sigma = IntegerRange(0, self.output_num)
+            test_seq = EmissionSequence(sigma, cluster_data.tolist())
+            diff[i] =  abs(abs(float(self.m.viterbi(test_seq)[1])) - abs(float(self.gesture_treshold)))
 
-                cluster_data = training.cluster(filename + ".txt", output_num)
-                #HMMfactory = HMMOpenFactory(GHMM_FILETYPE_XML)
-                m = HMMOpen("sr_m_file.xml")
-                print m
-                sigma = IntegerRange(0, output_num)
+        for i in range(0, len(diff)):
+            diff[i] += self.cost_list[i]
 
-                test_seq = EmissionSequence(sigma, cluster_data.tolist())
-                print test_seq
-                print m.viterbi(test_seq)
-                print gesture_treshold
-                diff4 = abs(abs(float(m.viterbi(test_seq)[1])) - abs(float(gesture_treshold)))
-                print "Diff 4: "
-                print diff4
+        print diff
+        treshold = float(7)
+        min_diff = min(diff)
+        if (diff[0] > treshold) and (diff[1] > treshold) and (diff[2] > treshold) and (diff[3] > treshold) and (diff[4] > treshold):
+            print ("NEMA GESTE")
+        elif diff[0] == min_diff:
+            print ('Pijenje iz case !!!')
+        elif diff[1] == min_diff:
+            print ('Zaba !!!')
+        elif diff[2] == min_diff or diff[3] == min_diff:
+            print ('Proljevanje !!!')
+        elif diff[4] == min_diff:
+            print ("Avion!")
+        return 1
 
-        diff_all = [diff1, diff2, diff3, diff4]
-        print diff_all
-        min_diff = min(diff_all)
-        print min_diff
-        tts.say("I recognize the gesture, you repeated drinking from a cup, great job !")
-
-        #    tts.say("I recognize the gesture, you repeated drinking from a cup, great job !")
-        #    print ('Pijenje iz case !!!')
-        #elif diff3 == min_diff or diff4 == min_diff:
-        #    tts.say("Why did you spill my drink?")
-        #    print ('Nema geste, proljevanje !!!')
-        #else:
-        #    tts.say("I did not recognize the gesture, please try again")
-        #    print ('Nema geste, kotrljanje case !!!')
-
-
-
-
-
+if __name__ == '__main__':
+    # object tracking part
+    try:
+        track = GestureRecognitionClass()
+        track.trackingInit()
+        track.trackingLoop()
+        track.trackingFinal()
+        # gesture recognition part
+        track.recognitionFun()
+    finally:
+        track.shutDown()

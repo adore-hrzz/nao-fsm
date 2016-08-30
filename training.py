@@ -84,14 +84,16 @@ if __name__ == '__main__':
     state_num = input('Broj stanja: ')
     output_num = input('Broj izlaza: ')
 
-    dataset_num = 10
+    dataset_num = 101 # broj fileova data seta
     clust_data = []
     clust_set = []
     gesture_seq = []
     gesture_treshold = 0
 
     for i in range(dataset_num):
-        clust_data.append(cluster("temp" + str(i) + ".txt", output_num))
+        clust_data.append(cluster("/home/luka/Documents/FER_projekt/Diplomski_rad/Temp_set/Drink/gest" + str(i) + ".txt", output_num)) # file-ovi za trening
+
+        #clust_data.append(cluster("gest" + str(i) + ".txt", output_num))
 
     for i in range(dataset_num):
         clust_set = np.concatenate((clust_set, clust_data[i]), 0)
@@ -106,7 +108,7 @@ if __name__ == '__main__':
 
     m.baumWelch(train_seq)
 
-    m.write('m_file.xml')
+    m.write('/home/luka/Documents/FER_projekt/Diplomski_rad/trained/m_file.xml') # izrada m filea
     print m
 
     for i in range(dataset_num):
@@ -124,7 +126,7 @@ if __name__ == '__main__':
     gesture_treshold = gesture_treshold / float(dataset_num)
     print gesture_treshold
 
-    f = open('gesture_file.txt', 'w')
+    f = open('/home/luka/Documents/FER_projekt/Diplomski_rad/trained/gesture_file.txt', 'w') # podaci za gestu, treshold i broj stanja
     f.writelines(str(state_num))
     f.write('\n')
     f.write(str(output_num))

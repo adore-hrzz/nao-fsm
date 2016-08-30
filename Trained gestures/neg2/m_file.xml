@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE mixture PUBLIC "-//ghmm.org//DOCUMENT ghmm V1.0//EN" "http://ghmm.sourceforge.net/xml/1.0/ghmm.dtd">
+<mixture version="1.0" noComponents="1">
+ <HMM name="" type="discrete">
+  <alphabet id="0">
+   <symbol code="0">0</symbol>
+   <symbol code="1">1</symbol>
+   <symbol code="2">2</symbol>
+   <symbol code="3">3</symbol>
+  </alphabet>
+  <state id="0" initial="0.99962005">
+   <discrete id="0">0.96330653, 0.036693323, 0, 1.4401696e-07</discrete>
+  </state>
+  <state id="1" initial="0.00037995">
+   <discrete id="0">0.24565242, 0.21431869, 0.35068725, 0.18934165</discrete>
+  </state>
+  <transition source="0" target="0">
+   <probability>0.62493993</probability>
+  </transition>
+  <transition source="0" target="1">
+   <probability>0.37506007</probability>
+  </transition>
+  <transition source="1" target="1">
+   <probability>1</probability>
+  </transition>
+ </HMM>
+</mixture>

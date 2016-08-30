@@ -52,7 +52,7 @@ def medfilt (x, k):
 def histThresh(image, seedcolor, diagnostic):
     image = cv2.medianBlur(image, 9)
     image=cv2.cvtColor(image,cv2.cv.CV_RGB2HSV)
-    image[:,:,0]*=255.0/180.0
+    image[:,:,0]*=255.0/180.0 # not work!!!
     width = np.size(image,1)
     height = np.size(image,0)
     saturationCutoff=255*0.3
@@ -512,7 +512,7 @@ class NaoImgGetter:
         imageWidth = naoImage[0]
         imageHeight = naoImage[1]
         array = naoImage[6]
-        self.pilimage = Image.fromstring("RGB", (imageWidth,imageHeight), array)
+        self.pilimage = Image.fromstring("RGB", (imageWidth,imageHeight), array) #frombytes
         self.image=np.array(self.pilimage)
         #self.image.resize((320,240),Image.ANTIALIAS)
         t1=time.time()
