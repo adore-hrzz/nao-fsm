@@ -245,8 +245,8 @@ class Fsm():
         self.state_config = ConfigParser.ConfigParser()
         self.state_config.read(self.state_file)
 
-        self.IP = config.get('Grab settings', 'IP')
-        self.PORT = config.get('Grab settings', 'PORT')
+        self.IP = config.get('Settings', 'IP')
+        self.PORT = config.get('Settings', 'PORT')
         self.PORT = int(self.PORT)
 
         self.objectColor = 0.0 # potreban fix !!! ######################################################################
