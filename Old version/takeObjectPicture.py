@@ -70,7 +70,7 @@ if __name__ == '__main__':
     motionproxy.setAngles('HeadYaw',0,0.5)
     time.sleep(0.5)
 
-    os.system('sshpass -p "nao" scp -r /home/luka/Documents/Diplomski_seminar/Seminar/' + objectName + '/ nao@' + IP + ':/home/nao/ImageSets/')
+    os.system('sshpass -p "nao" scp -r /home/frano/devel/code/git/nao-imitation-fsm/Image\ sets/' + objectName + '/ nao@' + IP + ':/home/nao/ImageSets/')
     print('done')
 
     myBroker.shutdown()

@@ -20,7 +20,7 @@ import os
 
 from transitions import Machine
 
-global ObjectTracker # ObjectTracker has to be global because otherwise communication with the module running on
+ObjectTracker = None # ObjectTracker has to be global because otherwise communication with the module running on
                      # NAO robot does not work
 
 
@@ -221,10 +221,10 @@ class Fsm():
         {'trigger': 'initial', 'source': ['Search', 'Image_processing', 'Object_action', 'Object_tracking'], 'dest': 'Initial', 'after': 'initial_state'}
         ]
 
-    ObjectTracker = None
+    #ObjectTracker = None
 
     def __init__(self):
-        global ObjectTracker
+
         print ("Initializing program ...")
         self.robRotation = 0
 
@@ -298,7 +298,15 @@ class Fsm():
         self.back_to_initial = False
 
         # initialization of object trackier module by object tracker class
+        global ObjectTracker
         ObjectTracker = ObjectTrackerModule("ObjectTracker", self.myBroker)
+
+        # try:
+        #     while True:
+        #         time.sleep(1)
+        # except KeyboardInterrupt:
+        #     print
+        #     print "Interrupted by user, shutting down"
 
         # grabbing parameters for later use
         self.grabPoint = 0
@@ -317,6 +325,14 @@ class Fsm():
         From here, Fsm goes to its next state.
         """
         #print (self.machine.state)
+
+        # print("In initial state")
+        # try:
+        #     while True:
+        #         time.sleep(1)
+        # except KeyboardInterrupt:
+        #     print
+        #     print "Interrupted by user, shutting down"
 
         #postavljanje vrijednosti u text file koji sluzi za komunikaciju sa zasebnim programom za gesture recognition
         self.state_config.set("State info", "state", "Initial")
@@ -347,7 +363,7 @@ class Fsm():
             #    self.tts.say('Are you ready for some fun')
 
             if self.start_state == 'grabbing':
-                self.Nao_object = 'Plane'
+                self.Nao_object = 'Frog'
                 self.process()
             elif self.start_state == 'tracking':
                 self.track()
@@ -383,7 +399,7 @@ class Fsm():
         #if self.object_is == 'Cup':
 
         # loading images to object tracker and starting it
-        ObjectTracker.load("/home/nao/ImageSets/plane", 'Plane')
+        ObjectTracker.load("/home/nao/ImageSets/frog", 'Frog')
         ObjectTracker.startTracker(1)
 
         # list of head positions for object searching
