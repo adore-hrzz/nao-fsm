@@ -11,6 +11,7 @@ import vision_definitions
 import ConfigParser, argparse
 import objectManipulation
 import random
+import cProfile
 
 from ghmm import *
 
@@ -22,7 +23,6 @@ from transitions import Machine
 
 ObjectTracker = None # ObjectTracker has to be global because otherwise communication with the module running on
                      # NAO robot does not work
-
 
 class ObjectTrackerModule(ALModule):
     """
@@ -81,6 +81,7 @@ class ObjectTrackerModule(ALModule):
         :param path: Path to image sets in NAOs memory.
         :param name: Object name.
         """
+        global ObjectTracker
         self.gestureProxy.loadDataset(path)
         self.kindNames.append(name)
         self.exists.append(False)
@@ -301,12 +302,6 @@ class Fsm():
         global ObjectTracker
         ObjectTracker = ObjectTrackerModule("ObjectTracker", self.myBroker)
 
-        # try:
-        #     while True:
-        #         time.sleep(1)
-        # except KeyboardInterrupt:
-        #     print
-        #     print "Interrupted by user, shutting down"
 
         # grabbing parameters for later use
         self.grabPoint = 0
@@ -453,12 +448,12 @@ class Fsm():
         t = 1
         timeObject = 4
         while t < timeObject:
-            test_1 = ObjectTracker.getExist('Plane')
+            test_1 = ObjectTracker.getExist('Frog')
             if test_1 is not None and test_1:
                 if not self.mute:
-                    self.tts.say('I found a plane')
-                print 'Cup exists'
-                self.Nao_object = 'Plane'
+                    self.tts.say('I found a frog')
+                print 'Frog found'
+                self.Nao_object = 'Frog'
                 self.found = True
                 return 1
 
@@ -854,14 +849,18 @@ class Fsm():
         self.motionproxy.killAll()
         self.myBroker.shutdown()
         #self.alvideoproxy.unsubscribeAllInstances(self.video)
-        exit()
+        #exit()
 
 
 
 if __name__ == '__main__':
     # main is used only to initialize state machine and to start it
+    pr = cProfile.Profile()
+    pr.enable()
     nao = Fsm()
     try:
         nao.start()
     finally:
+        pr.disable()
+        pr.print_stats(sort='time')
         nao.shutdown()
