@@ -70,6 +70,10 @@ def histThresh(image, seedcolor, diagnostic):
     sMask=image[:,:,1]>saturationCutoff
     vMask=image[:,:,2]>valueCutoff
 
+    cv2.imwrite('satmask.png',sMask*255.0)
+    cv2.imwrite('valmask.png',vMask*255.0)
+    print("Saved ----------------- SAVED ---------------- SAVED !!!!! %%%%%")
+
     hueHistOrig=hueHist
     hueHist2=medfilt(np.array(hueHist),3)
 
@@ -103,7 +107,7 @@ def histThresh(image, seedcolor, diagnostic):
             meanAccumulator+=j*hueHist[j]
             numel+=hueHist[j]
         nPx+=[numel]
-        modalityMeans+=[1.0*meanAccumulator/numel]
+        modalityMeans+=[1.0*meanAccumulator/(numel)]
         meanAccumulator = 0
         numel = 0
 
@@ -113,7 +117,7 @@ def histThresh(image, seedcolor, diagnostic):
         else:
             meanAccumulator+=j*hueHist[j]
         numel+=hueHist[j]
-    tmeans=1.0*meanAccumulator/numel
+    tmeans=1.0*meanAccumulator/(numel)
     nPx+=[numel]
     if (tmeans<0):
         tmeans = bins+tmeans
@@ -169,6 +173,7 @@ def histThresh(image, seedcolor, diagnostic):
         cv2.imwrite('satmask.png',sMask*255.0)
         cv2.imwrite('valmask.png',vMask*255.0)
         cv2.imwrite('huemask.png',hMask*255.0)
+        print("Saved ----------------- SAVED ---------------- SAVED !!!!! %%%%%")
 
     dest=cv2.dilate(dest*1.0,np.ones((10,10)))
     dest=cv2.erode(dest*1.0,np.ones((10,10)))

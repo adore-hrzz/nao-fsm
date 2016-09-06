@@ -370,7 +370,7 @@ class Fsm():
             if repeat == "all":
                 self.search()
             elif repeat == "grabbing":
-                self.Nao_object = 'Cup'
+                self.Nao_object = 'Frog'
                 self.process()
             elif repeat == "tracking":
                 self.track()
@@ -403,7 +403,7 @@ class Fsm():
         look_dir = ["close", "far", "right", "left"]
 
         # searching for object with one second sleep because of head movement
-        for i in range(0, 5):
+        for i in range(0, 4):
             self.gestureProxy.stopFocus()
             self.head_pitch = head_pitch_list[i]
             self.head_yaw = head_yaw_list[i]
@@ -517,13 +517,15 @@ class Fsm():
         d_ver = 0.0
         stsel = 0
 
-        self.camera.getImage(11) #change to string if problems occur
+        self.camera.getImage(kBGRColorSpace) #change to string if problems occur
         cv2.imwrite('camera.png',self.camera.image)
-
+        #cv2.imshow("Camera", self.camera.image)
+        #cv2.waitKey(0)
         # calculating grabbing point with image processing
         # NOTE - this part was developed before which is why there is no detailed description of image processing
         # algorithm and it's scripts
         temp = self.identifyGrabPoint()
+        print("Temp %s" % temp)
         if temp == None:
             manual_break = 1
             return None
@@ -647,7 +649,10 @@ class Fsm():
             self.behaviour = self.Nao_object.lower() + str(self.grab_direction)
         print(self.behaviour)
 
-        self.behaveproxy.runBehavior(self.behaviour)
+        #self.behaveproxy.runBehavior(self.behaviour)
+        print("PERFORMING GESTURES")
+        time.sleep(1.0)
+        print("PERFORMING GESTURES")
         if self.behaviour == 'frog' + str(self.grab_direction):
             self.behaviour = 'frog'
         self.Gesture_robot = self.Nao_object
@@ -701,10 +706,16 @@ class Fsm():
         imageTmp=cv2.cvtColor(imageTmp,cv2.cv.CV_RGB2HSV)
         satImg = cv2.split(imageTmp)[1]
         hueImg = cv2.split(imageTmp)[0]/180.0
+        cv2.imshow("SatImg", satImg)
+        cv2.imshow("HueImg", hueImg)
+        cv2.waitKey(0)
+        cv2.destroyWindow("SatImg")
+        cv2.destroyWindow("HueImg")
         #retval, binaryImage = cv2.threshold(satImg, 150, 255, cv2.THRESH_BINARY)#+cv2.THRESH_OTSU)
         binaryImage = NaoImageProcessing.histThresh(self.camera.image, self.objectColor, self.diagnostic)
-        cv2.imwrite('satmask.png',satImg)
+        #cv2.imwrite('satmask.png',satImg)
         cv2.imwrite('object_segmented.png',binaryImage)
+
         if cv2.countNonZero(binaryImage) < 1000:
             print('No object segmented')
             return None
@@ -862,5 +873,5 @@ if __name__ == '__main__':
         nao.start()
     finally:
         pr.disable()
-        pr.print_stats(sort='time')
+        #pr.print_stats(sort='time')
         nao.shutdown()
