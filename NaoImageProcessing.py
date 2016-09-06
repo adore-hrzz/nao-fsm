@@ -107,6 +107,7 @@ def histThresh(image, seedcolor, diagnostic):
             meanAccumulator+=j*hueHist[j]
             numel+=hueHist[j]
         nPx+=[numel]
+        print("NUMEL NUMEL NUMEL %s" % numel)
         modalityMeans+=[1.0*meanAccumulator/(numel)]
         meanAccumulator = 0
         numel = 0

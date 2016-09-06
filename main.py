@@ -377,6 +377,7 @@ class Fsm():
             elif repeat == "search":
                 self.search()
             else:
+                print("You said shutdown but no no no")
                 self.shutdown()
 
     def object_detection(self):
@@ -706,11 +707,11 @@ class Fsm():
         imageTmp=cv2.cvtColor(imageTmp,cv2.cv.CV_RGB2HSV)
         satImg = cv2.split(imageTmp)[1]
         hueImg = cv2.split(imageTmp)[0]/180.0
-        cv2.imshow("SatImg", satImg)
-        cv2.imshow("HueImg", hueImg)
-        cv2.waitKey(0)
-        cv2.destroyWindow("SatImg")
-        cv2.destroyWindow("HueImg")
+        #cv2.imshow("SatImg", satImg)
+        #.imshow("HueImg", hueImg)
+        #cv2.waitKey(0)
+        #cv2.destroyWindow("SatImg")
+        #cv2.destroyWindow("HueImg")
         #retval, binaryImage = cv2.threshold(satImg, 150, 255, cv2.THRESH_BINARY)#+cv2.THRESH_OTSU)
         binaryImage = NaoImageProcessing.histThresh(self.camera.image, self.objectColor, self.diagnostic)
         #cv2.imwrite('satmask.png',satImg)
