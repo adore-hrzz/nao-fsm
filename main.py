@@ -250,7 +250,7 @@ class Fsm():
         self.PORT = config.get('Settings', 'PORT')
         self.PORT = int(self.PORT)
 
-        self.objectColor = float(config.get('Setting', 'hue')) # potreban fix !!! ######################################################################
+        self.objectColor = float(config.get('Settings', 'hue')) # potreban fix !!! ######################################################################
         # initialization of all proxies for working with NAO
         self.myBroker = ALBroker("myBroker", "0.0.0.0", 0, self.IP, self.PORT)
         self.camera=NaoImageProcessing.NaoImgGetter(self.IP, self.PORT, 1)
