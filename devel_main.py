@@ -263,8 +263,7 @@ class Fsm():
         self.sound = ALProxy('ALAudioDevice', self.myBroker)
         self.memory = ALProxy('ALMemory', self.myBroker)
         self.memory.insertData('ObjectGrabber', int(0))
-        # gesture proxy should not be used from this class, ObjectTrackerModule should be used
-        # self.gestureProxy = ALProxy("NAOObjectGesture", self.myBroker)
+
         self.alvideoproxy = ALProxy("ALVideoDevice", self.IP, self.PORT)
         self.video = self.alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
 
@@ -293,6 +292,7 @@ class Fsm():
         self.behaviour_count = int(float(self.behaviour_count))
 
         # setting up state machine
+        # TODO: check if states and transitions are shared between all instances of Fsm class, shouldn't they be referenced through Fsm.states, rather than self.states?
         self.machine = Machine(model=self, states=self.states, transitions=self.transitions, initial='Start')
         self.head_pitch = [0, 0]
         self.head_yaw = [0, 0]
@@ -336,20 +336,24 @@ class Fsm():
 
 
         # setting robot in initial standing position
+        # TODO: check whether the sleep commmands are necessary
         self.postureproxy.goToPosture("StandInit", 0.8)
         self.motionproxy.setAngles('HeadPitch', 0, 0.5)
         time.sleep(0.5)
         self.motionproxy.setAngles('HeadYaw', 0, 0.5)
         time.sleep(0.5)
+        # TODO: check why is this neccessary, head stiffness should already be on by this point
         self.motionproxy.setStiffnesses("Head", 1.0)
         print('NAO is in initial position')
 
         # criteria for running program and repeating it
         if not self.back_to_initial:
+
             #if not self.mute:
             #    self.tts.say('Are you ready for some fun')
 
             if self.start_state == 'grabbing':
+                # TODO: why is this hardcoded
                 self.Nao_object = 'Frog'
                 self.process()
             elif self.start_state == 'tracking':
@@ -357,7 +361,6 @@ class Fsm():
             else:
                 self.search()
         else:
-
             repeat = raw_input("Repeat? : ")
             if repeat == "all":
                 self.search()
@@ -383,64 +386,51 @@ class Fsm():
         self.state_config.set("State info", "state", "Searching")
         with open(self.state_file, 'wb') as configfile:
             self.state_config.write(configfile)
+        # TODO: check what this sleep does
         time.sleep(1)
-        #if self.object_is == 'Cup':
 
         # loading images to object tracker and starting it
         ObjectTracker.load("/home/nao/ImageSets/frog", 'Frog')
         ObjectTracker.startTracker(1)
 
-        # list of head positions for object searching
-        head_pitch_list = [[0, 0.5], [-0.2, 0.5], [-0.2, 0.5], [-0.2, 0.5]]
-        head_yaw_list = [[0, 0.5], [0, 0.5], [1, 0.5], [-1, 0.5]]
-        look_dir = ["close", "far", "right", "left"]
+        # TODO: check if this is neccessary
+        ObjectTracker.gestureProxy.stopFocus()
 
-        # searching for object with one second sleep because of head movement
-        for i in range(0, 4):
-            ObjectTracker.gestureProxy.stopFocus()
-            self.head_pitch = head_pitch_list[i]
-            self.head_yaw = head_yaw_list[i]
-            print("Searching for object: " + look_dir[i])
-            self.move_head()
-            self.searching_for_object()
-            if self.found:
-                self.robRotation = self.head_yaw[0]
-                time.sleep(1)
-                ObjectTracker.stopTracker()
-                ObjectTracker.unload()
-                self.behaveproxy.stopAllBehaviors()
-                time.sleep(1.0)
-                self.postureproxy.goToPosture("StandInit", 0.5)
-                self.motionproxy.killAll()
-                #self.memory.unsubscribeToMicroEvent('Cup', "ObjectTracker")
-                #self.gestureProxy.stopFocus()
-                if i == 0:
-                    self.process()
-                else:
-                    self.move_to_object()
-            #time.sleep(1)
-        if not self.found:
-            #time.sleep(1)
+        self.searching_for_object()
+        if self.found:
             ObjectTracker.stopTracker()
             ObjectTracker.unload()
             self.behaveproxy.stopAllBehaviors()
-            #time.sleep(1.0)
+            self.postureproxy.goToPosture("StandInit", 0.5)
+            self.motionproxy.killAll()
+            self.process()
+        else:
+            ObjectTracker.stopTracker()
+            ObjectTracker.unload()
+            self.behaveproxy.stopAllBehaviors()
             self.postureproxy.goToPosture("StandInit", 0.5)
             self.motionproxy.killAll()
             self.back_to_initial = True
             self.initial()
+
+        # list of head positions for object searching
+        #head_pitch_list = [[0, 0.5], [-0.2, 0.5], [-0.2, 0.5], [-0.2, 0.5]]
+        #head_yaw_list = [[0, 0.5], [0, 0.5], [1, 0.5], [-1, 0.5]]
+        #look_dir = ["close", "far", "right", "left"]
+
 
     def searching_for_object(self):
         """
         Object_detection function is calling this function. It starts object tracking with Object Tracker module, and
         stops tracking if object is found.
         """
-
+        print("started to search")
         #detekcija predmeta
         global ObjectTracker
         t = 1
         timeObject = 4
         while t < timeObject:
+            # TODO: remove hardcoding of object name
             test_1 = ObjectTracker.getExist('Frog')
             if test_1 is not None and test_1:
                 if not self.mute:
@@ -450,18 +440,9 @@ class Fsm():
                 self.found = True
                 return 1
 
-            #test_2 = ObjectTracker.getExist('Duck')
-            #if test_2 is not None and test_2:
-            #    print 'Duck exists'
-            #    self.Nao_object = 'Duck'
-            #    self.found = True
-            #    return 1
-
+            # TODO: check what does this sleep do
             time.sleep(1)
-            print t
             t += 1
-        t = 1
-        #time.sleep(2)
         self.found = False
         return 0
 
@@ -705,10 +686,19 @@ class Fsm():
         #cv2.destroyWindow("SatImg")
         #cv2.destroyWindow("HueImg")
         #retval, binaryImage = cv2.threshold(satImg, 150, 255, cv2.THRESH_BINARY)#+cv2.THRESH_OTSU)
+
+        pr = cProfile.Profile()
+        pr.enable()
         binaryImage = NaoImageProcessing.histThresh(self.camera.image, self.objectColor, self.diagnostic)
+        pr.disable()
+        pr.print_stats(sort='time')
+
         #cv2.imwrite('satmask.png',satImg)
         cv2.imwrite('object_segmented.png',binaryImage)
 
+        # TODO: check what morphological operations do to cup/frog/plane
+        #cv2.morphologyEx(binaryImage, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (25, 25)))
+        #cv2.imwrite('object_segmented_closed.png',binaryImage)
         if cv2.countNonZero(binaryImage) < 1000:
             print('No object segmented')
             return None
@@ -859,12 +849,10 @@ class Fsm():
 
 if __name__ == '__main__':
     # main is used only to initialize state machine and to start it
-    pr = cProfile.Profile()
-    pr.enable()
+
     nao = Fsm()
     try:
         nao.start()
     finally:
-        pr.disable()
-        #pr.print_stats(sort='time')
+
         nao.shutdown()

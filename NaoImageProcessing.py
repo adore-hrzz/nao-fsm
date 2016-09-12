@@ -168,8 +168,8 @@ def histThresh(image, seedcolor, diagnostic):
                     else:
                         num = 10000
 
-        plt.plot(range(0,bins),diagArray,'r',range(0,bins),hueHist2,'b')
-        plt.show()
+        #plt.plot(range(0,bins),diagArray,'r',range(0,bins),hueHist2,'b')
+        #plt.show()
 
         cv2.imwrite('satmask.png',sMask*255.0)
         cv2.imwrite('valmask.png',vMask*255.0)
