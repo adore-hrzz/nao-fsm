@@ -266,8 +266,6 @@ class Fsm():
 
         self.alvideoproxy = ALProxy("ALVideoDevice", self.IP, self.PORT)
 
-        #self.video = self.alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
-       #print('Subscribed')
         try:
             self.video = self.alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
         except RuntimeError as e:
@@ -362,10 +360,6 @@ class Fsm():
 
         # criteria for running program and repeating it
         if not self.back_to_initial:
-
-            #if not self.mute:
-            #    self.tts.say('Are you ready for some fun')
-
             if self.start_state == 'grabbing':
                 # TODO: why is this hardcoded
                 self.Nao_object = self.object_is
@@ -373,7 +367,8 @@ class Fsm():
             elif self.start_state == 'tracking':
                 self.track()
             else:
-                self.search()
+                # TODO: here the search was, changed to process
+                self.process()
         else:
             repeat = raw_input("Repeat? : ")
             if repeat == "all":
@@ -404,6 +399,7 @@ class Fsm():
         time.sleep(1)
 
         # loading images to object tracker and starting it
+        # TODO: remove hardcoding
         ObjectTracker.load("/home/nao/ImageSets/frog", 'Frog')
         ObjectTracker.startTracker(1)
 
@@ -427,11 +423,6 @@ class Fsm():
             self.back_to_initial = True
             self.initial()
 
-        # list of head positions for object searching
-        #head_pitch_list = [[0, 0.5], [-0.2, 0.5], [-0.2, 0.5], [-0.2, 0.5]]
-        #head_yaw_list = [[0, 0.5], [0, 0.5], [1, 0.5], [-1, 0.5]]
-        #look_dir = ["close", "far", "right", "left"]
-
 
     def searching_for_object(self):
         """
@@ -444,12 +435,10 @@ class Fsm():
         t = 1
         timeObject = 4
         while t < timeObject:
-            # TODO: remove hardcoding of object name
             test_1 = ObjectTracker.getExist(self.object_is)
             if test_1 is not None and test_1:
                 if not self.mute:
                     self.tts.say('I found a %s' % self.object_is)
-                print('%s found' % self.object_is)
                 self.Nao_object = self.object_is
                 self.found = True
                 return 1
@@ -507,13 +496,10 @@ class Fsm():
 
         self.camera.getImage(kBGRColorSpace) #change to string if problems occur
         cv2.imwrite('camera.png',self.camera.image)
-        #cv2.imshow("Camera", self.camera.image)
-        #cv2.waitKey(0)
         # calculating grabbing point with image processing
         # NOTE - this part was developed before which is why there is no detailed description of image processing
         # algorithm and it's scripts
         temp = self.identifyGrabPoint()
-        print("Temp %s" % temp)
         if temp == None:
             manual_break = 1
             return None
