@@ -308,7 +308,7 @@ class Fsm():
         self.grabPoint = 0
         self.grab_direction = 0
         self.grab_number = 0
-        self.Nao_object = ''
+        self.Nao_object = 'Cup'
         self.grab_pix = 0
 
         self.hue_min = config.getint(self.object_is, 'hmin')
@@ -669,8 +669,8 @@ class Fsm():
         print ("starting gesture recognition")
 
         #time.sleep(2)
-
-        os.system('python recognition.py Config.ini')
+        # TODO: uncomment to enable gesture recognition
+        #os.system('python recognition.py Config.ini')
 
         time.sleep(2)
         self.myBroker = ALBroker("myBroker", "0.0.0.0", 0, self.IP, self.PORT)
@@ -713,13 +713,13 @@ class Fsm():
         contours, hierarchy = cv2.findContours(binaryImage, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
 
         hierarchy = hierarchy[0]
-        print hierarchy
+        print("Hierarchy %s: " % hierarchy)
         areas = []
         avgcolors = []
         for i in range(0, len(contours)):
-            if (hierarchy[i][3]>=0):
-                areas+=[0]
-                avgcolors+=[0.5]
+            if hierarchy[i][3] >= 0:
+                areas += [0]
+                avgcolors += [0.5]
             else:
                 tempDraw = np.zeros(hueImg.shape)
                 cv2.drawContours(tempDraw,contours,i, 255, -1)
