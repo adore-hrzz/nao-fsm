@@ -368,7 +368,7 @@ class Fsm():
 
             if self.start_state == 'grabbing':
                 # TODO: why is this hardcoded
-                self.Nao_object = 'Frog'
+                self.Nao_object = self.object_is
                 self.process()
             elif self.start_state == 'tracking':
                 self.track()
@@ -379,7 +379,7 @@ class Fsm():
             if repeat == "all":
                 self.search()
             elif repeat == "grabbing":
-                self.Nao_object = 'Frog'
+                self.Nao_object = self.object_is
                 self.process()
             elif repeat == "tracking":
                 self.track()
