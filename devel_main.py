@@ -311,6 +311,12 @@ class Fsm():
         self.Nao_object = ''
         self.grab_pix = 0
 
+        self.hue_min = config.getint(self.object_is, 'hmin')
+        self.hue_max = config.getint(self.object_is, 'hmax')
+        self.sat_min = config.getint(self.object_is, 'smin')
+        self.sat_max = config.getint(self.object_is, 'smax')
+        self.val_min = config.getint(self.object_is, 'vmin')
+        self.val_max = config.getint(self.object_is, 'vmax')
 
 
         print ("Initialization complete ...")
@@ -687,14 +693,15 @@ class Fsm():
         #cv2.destroyWindow("HueImg")
         #retval, binaryImage = cv2.threshold(satImg, 150, 255, cv2.THRESH_BINARY)#+cv2.THRESH_OTSU)
 
-        pr = cProfile.Profile()
-        pr.enable()
-        binaryImage = NaoImageProcessing.histThresh(self.camera.image, self.objectColor, self.diagnostic)
-        pr.disable()
-        pr.print_stats(sort='time')
-
+        #pr = cProfile.Profile()
+        #pr.enable()
+        #binaryImage = NaoImageProcessing.histThresh(self.camera.image, self.objectColor, self.diagnostic)
+        #pr.disable()
+        #pr.print_stats(sort='time')
+        img_hsv = cv2.cvtColor(self.camera.image, cv2.COLOR_BGR2HSV)
+        binaryImage = cv2.inRange(img_hsv, (self.hue_min, self.sat_min, self.val_min), (self.hue_max, self.sat_max, self.val_max))
         #cv2.imwrite('satmask.png',satImg)
-        cv2.imwrite('object_segmented.png',binaryImage)
+        cv2.imwrite('object_segmented.png', binaryImage)
 
         # TODO: check what morphological operations do to cup/frog/plane
         #cv2.morphologyEx(binaryImage, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (25, 25)))
