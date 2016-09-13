@@ -265,7 +265,15 @@ class Fsm():
         self.memory.insertData('ObjectGrabber', int(0))
 
         self.alvideoproxy = ALProxy("ALVideoDevice", self.IP, self.PORT)
-        self.video = self.alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
+
+        #self.video = self.alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
+       #print('Subscribed')
+        try:
+            self.video = self.alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
+        except RuntimeError as e:
+            if e.args[0].split()[0] == 'ALVideoDevice::Subscribe':
+                self.alvideoproxy.unsubscribeAllInstances("video")
+                self.video = self.alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
 
         self.camProxy = ALProxy("ALVideoDevice", self.IP, self.PORT)
 
@@ -437,12 +445,12 @@ class Fsm():
         timeObject = 4
         while t < timeObject:
             # TODO: remove hardcoding of object name
-            test_1 = ObjectTracker.getExist('Frog')
+            test_1 = ObjectTracker.getExist(self.object_is)
             if test_1 is not None and test_1:
                 if not self.mute:
-                    self.tts.say('I found a frog')
-                print 'Frog found'
-                self.Nao_object = 'Frog'
+                    self.tts.say('I found a %s' % self.object_is)
+                print('%s found' % self.object_is)
+                self.Nao_object = self.object_is
                 self.found = True
                 return 1
 
@@ -717,10 +725,13 @@ class Fsm():
         areas = []
         avgcolors = []
         for i in range(0, len(contours)):
+            print('Looping contours %s' % i)
             if hierarchy[i][3] >= 0:
+                print('hierarchy[i][3] >= 0:')
                 areas += [0]
                 avgcolors += [0.5]
             else:
+                print('else')
                 tempDraw = np.zeros(hueImg.shape)
                 cv2.drawContours(tempDraw,contours,i, 255, -1)
                 area = len(tempDraw[np.nonzero(tempDraw)])
@@ -728,9 +739,11 @@ class Fsm():
                 avgcolor/=area
                 areas+=[area]
                 avgcolors+=[min(abs(avgcolor-self.objectColor), abs(1-avgcolor-self.objectColor))]
-
+        print('avgcolors %s' % avgcolors)
         bestColor = min(avgcolors)
-        if (bestColor > 0.2):
+        print('bestcolor %s' % bestColor)
+        # TODO: check 0.2 threshold
+        if (bestColor > 0.45):
             return None
         maxblobidx = -1
         maxarea = 0
@@ -749,6 +762,9 @@ class Fsm():
 
         objBox = NaoImageProcessing.getBB(contours[objectID])
         objectBB = objBox
+
+        print("hierarchy[objectID][2] %s" % hierarchy[objectID][2])
+        print("self.Nao_object %s" % self.Nao_object)
 
         if hierarchy[objectID][2]<0 or self.Nao_object != 'Cup':
             print 'Assuming no hole in object'
