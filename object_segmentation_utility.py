@@ -108,9 +108,11 @@ def main2():
     try:
         video = alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
     except RuntimeError as e:
-        if e.args[0].split()[0] == 'ALVideoDevice::Subscribe':
+        if e.args[0].split()[0] == 'ALVideoDevice::subscribe':
             alvideoproxy.unsubscribeAllInstances("video")
             video = alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
+        else:
+            raise e
     Trackbars2()
     while True:
         obj_color = opencv.getTrackbarPos('ObjColor', 'Trackbars')
