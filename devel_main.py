@@ -270,7 +270,7 @@ class Fsm():
             self.video = self.alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
         except RuntimeError as e:
             if e.args[0].split()[0] == 'ALVideoDevice::subscribe':
-                self.alvideoproxy.unsubscribeAllInstances("video")
+                self.alvideoproxy.unsubscribe("video")
                 self.video = self.alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
 
         self.camProxy = ALProxy("ALVideoDevice", self.IP, self.PORT)

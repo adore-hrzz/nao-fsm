@@ -109,7 +109,7 @@ def main2():
         video = alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
     except RuntimeError as e:
         if e.args[0].split()[0] == 'ALVideoDevice::subscribe':
-            alvideoproxy.unsubscribeAllInstances("video")
+            alvideoproxy.unsubscribe("video")
             video = alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
         else:
             raise e
