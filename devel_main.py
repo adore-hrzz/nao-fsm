@@ -276,13 +276,13 @@ class Fsm():
         self.camProxy = ALProxy("ALVideoDevice", self.IP, self.PORT)
 
         # getting data from configuration file
-        self.object_is = config.get ('Settings', 'Object')
+        self.object_is = config.get('Settings', 'Object')
 
         self.volume = config.get('Settings', 'Volume')
         self.volume = int(float(self.volume))
         self.sound.setOutputVolume(self.volume)
 
-        self.mute = config.get ('Settings', 'Mute')
+        self.mute = config.get('Settings', 'Mute')
         self.mute = int(self.mute)
 
         self.diagnostic = config.get ('Settings', 'Diagnostics')
