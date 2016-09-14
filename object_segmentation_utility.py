@@ -3,6 +3,7 @@ import ConfigParser, argparse
 import cv2 as opencv
 from vision_definitions import kBGRColorSpace, kVGA
 import numpy as np
+from NaoImageProcessing import histThresh
 
 
 def nothing(dummy):
@@ -25,6 +26,11 @@ def Trackbars():
     opencv.createTrackbar('S_Max', 'Trackbars', 256, 256, nothing)
     opencv.createTrackbar('V_Min', 'Trackbars', 0, 256, nothing)
     opencv.createTrackbar('V_Max', 'Trackbars', 256, 256, nothing)
+
+
+def Trackbars2():
+    opencv.namedWindow('Trackbars', opencv.WINDOW_AUTOSIZE)
+    opencv.createTrackbar('ObjColor', 'Trackbars', 0, 256, nothing)
 
 
 def main():
@@ -79,6 +85,38 @@ def main():
     with open(args.config, 'wb') as configfile:
         conf_parser.write(configfile)
 
+def main2():
+    arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument("config")
+    args = arg_parser.parse_args()
+    conf_parser = ConfigParser.ConfigParser()
+    conf_parser.read(args.config)
+
+    ip = conf_parser.get('Settings', 'IP')
+    port = conf_parser.getint('Settings', 'PORT')
+    camera = conf_parser.getint('Settings', 'camera')
+
+    opencv.namedWindow("Segmented")
+    alvideoproxy = ALProxy("ALVideoDevice", ip, port)
+    alvideoproxy.setParam(18, camera)
+    video = alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
+    Trackbars2()
+    while True:
+        obj_color = opencv.getTrackbarPos('ObjColor', 'Trackbars')
+        image = nao_image_getter(alvideoproxy, video)
+        segmented = histThresh(image, obj_color, 0)
+        opencv.imshow("Segmented", segmented)
+        opencv.imshow("Original", image)
+        if opencv.waitKey(10) == 27:
+            break
+    alvideoproxy.unsubscribe(video)
+    opencv.destroyAllWindows()
+
+    conf_parser.set('Settings', 'hue', obj_color)
+    with open(args.config, 'wb') as configfile:
+        conf_parser.write(configfile)
+
+
 if __name__ == '__main__':
-    main()
+    main2()
 
