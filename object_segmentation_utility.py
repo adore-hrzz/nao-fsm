@@ -112,7 +112,7 @@ def main2():
     alvideoproxy.unsubscribe(video)
     opencv.destroyAllWindows()
 
-    conf_parser.set('Settings', 'hue', obj_color)
+    conf_parser.set('Settings', 'hue', obj_color/256.0)
     with open(args.config, 'wb') as configfile:
         conf_parser.write(configfile)
 
