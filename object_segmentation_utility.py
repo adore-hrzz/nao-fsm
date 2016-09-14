@@ -104,7 +104,7 @@ def main2():
     while True:
         obj_color = opencv.getTrackbarPos('ObjColor', 'Trackbars')
         image = nao_image_getter(alvideoproxy, video)
-        segmented = histThresh(image, obj_color, 0)
+        segmented = histThresh(image, obj_color/256.0, 0)
         opencv.imshow("Segmented", segmented)
         opencv.imshow("Original", image)
         if opencv.waitKey(10) == 27:
