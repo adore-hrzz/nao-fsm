@@ -95,6 +95,7 @@ def main2():
     ip = conf_parser.get('Settings', 'IP')
     port = conf_parser.getint('Settings', 'PORT')
     camera = conf_parser.getint('Settings', 'camera')
+    object_name = conf_parser.get('Settings', 'object')
 
     opencv.namedWindow("Segmented")
     alvideoproxy = ALProxy("ALVideoDevice", ip, port)
@@ -111,8 +112,9 @@ def main2():
             break
     alvideoproxy.unsubscribe(video)
     opencv.destroyAllWindows()
-
-    conf_parser.set('Settings', 'hue', obj_color/256.0)
+    if object_name not in conf_parser.sections():
+        conf_parser.add_section(object_name)
+    conf_parser.set(object_name, 'hue', obj_color/256.0)
     with open(args.config, 'wb') as configfile:
         conf_parser.write(configfile)
 
