@@ -48,7 +48,12 @@ def main():
     opencv.namedWindow("Segmented")
     alvideoproxy = ALProxy("ALVideoDevice", ip, port)
     alvideoproxy.setParam(18, camera)
-    video = alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
+    try:
+        video = alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
+    except RuntimeError as e:
+        if e.args[0].split()[0] == 'ALVideoDevice::Subscribe':
+            alvideoproxy.unsubscribeAllInstances("video")
+            video = alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
     Trackbars()
     hue_min = 0
     hue_max = 255
@@ -100,7 +105,12 @@ def main2():
     opencv.namedWindow("Segmented")
     alvideoproxy = ALProxy("ALVideoDevice", ip, port)
     alvideoproxy.setParam(18, camera)
-    video = alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
+    try:
+        video = alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
+    except RuntimeError as e:
+        if e.args[0].split()[0] == 'ALVideoDevice::Subscribe':
+            alvideoproxy.unsubscribeAllInstances("video")
+            video = alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
     Trackbars2()
     while True:
         obj_color = opencv.getTrackbarPos('ObjColor', 'Trackbars')
