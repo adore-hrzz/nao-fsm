@@ -272,8 +272,8 @@ class Fsm():
             if e.args[0].split()[0] == 'ALVideoDevice::subscribe':
                 self.alvideoproxy.unsubscribe("video")
                 self.video = self.alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
-
-        self.camProxy = ALProxy("ALVideoDevice", self.IP, self.PORT)
+        self.alvideoproxy.setActiveCamera(1)
+        #self.camProxy = ALProxy("ALVideoDevice", self.IP, self.PORT)
 
         # getting data from configuration file
         self.object_is = config.get('Settings', 'Object')
@@ -317,12 +317,12 @@ class Fsm():
         self.Nao_object = 'Cup'
         self.grab_pix = 0
 
-        self.hue_min = config.getint(self.object_is, 'hmin')
-        self.hue_max = config.getint(self.object_is, 'hmax')
-        self.sat_min = config.getint(self.object_is, 'smin')
-        self.sat_max = config.getint(self.object_is, 'smax')
-        self.val_min = config.getint(self.object_is, 'vmin')
-        self.val_max = config.getint(self.object_is, 'vmax')
+        #self.hue_min = config.getint(self.object_is, 'hmin')
+        #self.hue_max = config.getint(self.object_is, 'hmax')
+        #self.sat_min = config.getint(self.object_is, 'smin')
+        #self.sat_max = config.getint(self.object_is, 'smax')
+        #self.val_min = config.getint(self.object_is, 'vmin')
+        #self.val_max = config.getint(self.object_is, 'vmax')
 
 
         print ("Initialization complete ...")
