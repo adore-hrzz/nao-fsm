@@ -272,7 +272,8 @@ class Fsm():
             if e.args[0].split()[0] == 'ALVideoDevice::subscribe':
                 self.alvideoproxy.unsubscribe("video")
                 self.video = self.alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
-        self.alvideoproxy.setActiveCamera(1)
+        self.alvideoproxy.setParam(18,1)
+
         #self.camProxy = ALProxy("ALVideoDevice", self.IP, self.PORT)
 
         # getting data from configuration file
@@ -493,8 +494,9 @@ class Fsm():
         d_hor = 0.0
         d_ver = 0.0
         stsel = 0
-
         self.camera.getImage(kBGRColorSpace) #change to string if problems occur
+        #alimg = self.alvideoproxy.getImageRemote(self.video)
+        #self.camera.image = None
         cv2.imwrite('camera.png',self.camera.image)
         # calculating grabbing point with image processing
         # NOTE - this part was developed before which is why there is no detailed description of image processing
