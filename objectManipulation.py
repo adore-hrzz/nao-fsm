@@ -51,6 +51,8 @@ class ManipulationClass():
         #motionProxy.setStiffnesses("RArm",0.0)
         #self.motionproxy.setAngles(hand,1.0,0.4)
 
+
+        #TODO: check all these offsets, remove hardcoding
         if self.Nao_object == 'Cup':
             sideOffset_app= self.grab_number * 0.04
             rotation= (-1) * self.grab_number * 1.57
@@ -90,6 +92,9 @@ class ManipulationClass():
 
             self.motionproxy.wbEnableEffectorControl(chainName, True)
             self.motionproxy.positionInterpolations([chainName], 2, listOfPointsBeforeGrasp,mask,listOfTimesBeforeGrasp,True)
+            # TODO: remove this print
+            print(grabPoint)
+            print(self.motionproxy.getPosition(chainName, 2, True))
             self.motionproxy.setAngles(handName, 0.0, 0.3)
             time.sleep(1.0)
             test = self.memory.getData('ObjectGrabber')

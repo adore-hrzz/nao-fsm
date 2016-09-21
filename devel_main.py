@@ -318,7 +318,7 @@ class Fsm():
         self.grabPoint = 0
         self.grab_direction = 0
         self.grab_number = 0
-        self.Nao_object = 'Cup'
+        self.Nao_object = self.object_is
         self.grab_pix = 0
         self.segmentation_type = config.getint('Settings', 'segmentation_type')
         if self.segmentation_type == 1:
