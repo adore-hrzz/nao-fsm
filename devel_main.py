@@ -691,13 +691,14 @@ class Fsm():
             binaryImage = cv2.inRange(img_hsv, (self.hue_min, self.sat_min, self.val_min), (self.hue_max, self.sat_max, self.val_max))
             binaryImage = cv2.dilate(binaryImage*1.0, np.ones((10, 10)))
             binaryImage = cv2.erode(binaryImage*1.0, np.ones((10, 10)))
+            binaryImage = cv2.convertScaleAbs(binaryImage*255)
 
         # TODO: remove imwrite
         cv2.imwrite('object_segmented.png', binaryImage)
 
         # TODO: check what morphological operations do to cup/frog/plane
-        cv2.morphologyEx(binaryImage, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (25, 25)))
-        cv2.imwrite('object_segmented_closed.png',binaryImage)
+        #cv2.morphologyEx(binaryImage, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (25, 25)))
+        #cv2.imwrite('object_segmented_closed.png',binaryImage)
         if cv2.countNonZero(binaryImage) < 1000:
             print('No object segmented')
             return None
