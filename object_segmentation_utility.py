@@ -18,7 +18,7 @@ def nao_image_getter(alvideoproxy, video):
     return img
 
 
-def Trackbars():
+def trackbars():
     opencv.namedWindow('Trackbars', opencv.WINDOW_AUTOSIZE)
     opencv.createTrackbar('H_Min', 'Trackbars', 0, 256, nothing)
     opencv.createTrackbar('H_Max', 'Trackbars', 256, 256, nothing)
@@ -28,33 +28,13 @@ def Trackbars():
     opencv.createTrackbar('V_Max', 'Trackbars', 256, 256, nothing)
 
 
-def Trackbars2():
+def trackbars2():
     opencv.namedWindow('Trackbars', opencv.WINDOW_AUTOSIZE)
     opencv.createTrackbar('ObjColor', 'Trackbars', 0, 256, nothing)
 
 
-def main():
-    arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument("config")
-    args = arg_parser.parse_args()
-    conf_parser = ConfigParser.ConfigParser()
-    conf_parser.read(args.config)
-
-    ip = conf_parser.get('Settings', 'IP')
-    port = conf_parser.getint('Settings', 'PORT')
-    camera = conf_parser.getint('Settings', 'camera')
-    object_name = conf_parser.get('Settings', 'object')
-
-    opencv.namedWindow("Segmented")
-    alvideoproxy = ALProxy("ALVideoDevice", ip, port)
-    alvideoproxy.setParam(18, camera)
-    try:
-        video = alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
-    except RuntimeError as e:
-        if e.args[0].split()[0] == 'ALVideoDevice::Subscribe':
-            alvideoproxy.unsubscribeAllInstances("video")
-            video = alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
-    Trackbars()
+def segmentation_hsv(alvideoproxy, video, conf_parser, object_name, args):
+    trackbars()
     hue_min = 0
     hue_max = 255
     sat_min = 0
@@ -71,6 +51,8 @@ def main():
         image = nao_image_getter(alvideoproxy, video)
         img_hsv = opencv.cvtColor(image, opencv.COLOR_BGR2HSV)
         segmented = opencv.inRange(img_hsv, (hue_min, sat_min, val_min), (hue_max, sat_max, val_max))
+        segmented = opencv.dilate(segmented*1.0, np.ones((10, 10)))
+        segmented = opencv.erode(segmented*1.0, np.ones((10, 10)))
         opencv.imshow("Segmented", segmented)
         opencv.imshow("Original", image)
         if opencv.waitKey(10) == 27:
@@ -90,30 +72,9 @@ def main():
     with open(args.config, 'wb') as configfile:
         conf_parser.write(configfile)
 
-def main2():
-    arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument("config")
-    args = arg_parser.parse_args()
-    conf_parser = ConfigParser.ConfigParser()
-    conf_parser.read(args.config)
 
-    ip = conf_parser.get('Settings', 'IP')
-    port = conf_parser.getint('Settings', 'PORT')
-    camera = conf_parser.getint('Settings', 'camera')
-    object_name = conf_parser.get('Settings', 'object')
-
-    opencv.namedWindow("Segmented")
-    alvideoproxy = ALProxy("ALVideoDevice", ip, port)
-    alvideoproxy.setParam(18, camera)
-    try:
-        video = alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
-    except RuntimeError as e:
-        if e.args[0].split()[0] == 'ALVideoDevice::subscribe':
-            alvideoproxy.unsubscribe("video")
-            video = alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
-        else:
-            raise e
-    Trackbars2()
+def segmentation_hue(alvideoproxy, video, conf_parser, object_name, args):
+    trackbars2()
     while True:
         obj_color = opencv.getTrackbarPos('ObjColor', 'Trackbars')
         image = nao_image_getter(alvideoproxy, video)
@@ -131,6 +92,36 @@ def main2():
         conf_parser.write(configfile)
 
 
+def main():
+    arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument("config")
+    args = arg_parser.parse_args()
+    conf_parser = ConfigParser.ConfigParser()
+    conf_parser.read(args.config)
+
+    ip = conf_parser.get('Settings', 'IP')
+    port = conf_parser.getint('Settings', 'PORT')
+    camera = conf_parser.getint('Settings', 'camera')
+    object_name = conf_parser.get('Settings', 'object')
+
+    opencv.namedWindow("Segmented")
+    alvideoproxy = ALProxy("ALVideoDevice", ip, port)
+    alvideoproxy.setParam(18, camera)
+    video = None
+    try:
+        video = alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
+    except RuntimeError as e:
+        if e.args[0].split()[0] == 'ALVideoDevice::Subscribe':
+            alvideoproxy.unsubscribeAllInstances("video")
+            video = alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
+
+    segmentation_type = conf_parser.getint('Settings', 'segmentation_type')
+    if segmentation_type == 0:
+        segmentation_hue(alvideoproxy, video, conf_parser, object_name, args)
+    else:
+        segmentation_hsv(alvideoproxy, video, conf_parser, object_name, args)
+
+
 if __name__ == '__main__':
-    main2()
+    main()
 

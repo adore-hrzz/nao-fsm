@@ -317,13 +317,14 @@ class Fsm():
         self.grab_number = 0
         self.Nao_object = 'Cup'
         self.grab_pix = 0
-
-        #self.hue_min = config.getint(self.object_is, 'hmin')
-        #self.hue_max = config.getint(self.object_is, 'hmax')
-        #self.sat_min = config.getint(self.object_is, 'smin')
-        #self.sat_max = config.getint(self.object_is, 'smax')
-        #self.val_min = config.getint(self.object_is, 'vmin')
-        #self.val_max = config.getint(self.object_is, 'vmax')
+        self.segmentation_type = config.getint('Settings', 'segmentation_type')
+        if self.segmentation_type == 1:
+            self.hue_min = config.getint(self.object_is, 'hmin')
+            self.hue_max = config.getint(self.object_is, 'hmax')
+            self.sat_min = config.getint(self.object_is, 'smin')
+            self.sat_max = config.getint(self.object_is, 'smax')
+            self.val_min = config.getint(self.object_is, 'vmin')
+            self.val_max = config.getint(self.object_is, 'vmax')
 
 
         print ("Initialization complete ...")
@@ -677,26 +678,21 @@ class Fsm():
         """
         Identifies grab point on objects image.
         """
-        #binaryImage=NaoImageProcessing.histThresh(image,objectColor, diagnostic) # dobivanje binarne slike
+
         imageTmp = cv2.medianBlur(self.camera.image, 9)
         imageTmp=cv2.cvtColor(imageTmp,cv2.cv.CV_RGB2HSV)
         satImg = cv2.split(imageTmp)[1]
         hueImg = cv2.split(imageTmp)[0]/180.0
-        #cv2.imshow("SatImg", satImg)
-        #.imshow("HueImg", hueImg)
-        #cv2.waitKey(0)
-        #cv2.destroyWindow("SatImg")
-        #cv2.destroyWindow("HueImg")
-        #retval, binaryImage = cv2.threshold(satImg, 150, 255, cv2.THRESH_BINARY)#+cv2.THRESH_OTSU)
 
-        #pr = cProfile.Profile()
-        #pr.enable()
-        binaryImage = NaoImageProcessing.histThresh(self.camera.image, self.objectColor, self.diagnostic)
-        #pr.disable()
-        #pr.print_stats(sort='time')
-        #img_hsv = cv2.cvtColor(self.camera.image, cv2.COLOR_BGR2HSV)
-        #binaryImage = cv2.inRange(img_hsv, (self.hue_min, self.sat_min, self.val_min), (self.hue_max, self.sat_max, self.val_max))
-        #cv2.imwrite('satmask.png',satImg)
+        if self.segmentation_type == 0:
+            binaryImage = NaoImageProcessing.histThresh(self.camera.image, self.objectColor, self.diagnostic)
+        else:
+            img_hsv = cv2.cvtColor(self.camera.image, cv2.COLOR_BGR2HSV)
+            binaryImage = cv2.inRange(img_hsv, (self.hue_min, self.sat_min, self.val_min), (self.hue_max, self.sat_max, self.val_max))
+            binaryImage = cv2.dilate(binaryImage*1.0, np.ones((10, 10)))
+            binaryImage = cv2.erode(binaryImage*1.0, np.ones((10, 10)))
+
+        # TODO: remove imwrite
         cv2.imwrite('object_segmented.png', binaryImage)
 
         # TODO: check what morphological operations do to cup/frog/plane
