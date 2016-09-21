@@ -89,17 +89,17 @@ class ManipulationClass():
                 return None
 
             self.motionproxy.wbEnableEffectorControl(chainName, True)
-            self.motionproxy.positionInterpolation(chainName, 2, listOfPointsBeforeGrasp,mask,listOfTimesBeforeGrasp,True)
+            self.motionproxy.positionInterpolations([chainName], 2, listOfPointsBeforeGrasp,mask,listOfTimesBeforeGrasp,True)
             self.motionproxy.setAngles(handName, 0.0, 0.3)
             time.sleep(1.0)
             test = self.memory.getData('ObjectGrabber')
             if test:
                 return None
-            self.motionproxy.positionInterpolation(chainName, 2, liftPoint, mask, 1, True)
+            self.motionproxy.positionInterpolations([chainName], 2, liftPoint, mask, 1, True)
             time.sleep(0.5)
 
             #self.motionproxy.positionInterpolation(chainName, 2, beh_pose, mask, 2, True)
-            self.motionproxy.positionInterpolation("Torso", 2, beh_pose, mask, 1, True)
+            self.motionproxy.positionInterpolations(["Torso"], 2, beh_pose, mask, 1, True)
             return 1
 
         elif action == "putBack":
