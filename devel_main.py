@@ -577,7 +577,8 @@ class Fsm():
             else:
                 stsel = 1
             if stsel == 1:
-                self.tts.say('I see how to grab the object')
+                if not self.mute:
+                    self.tts.say('I see how to grab the object')
                 #time.sleep(1)
                 self.grab()
             else:
