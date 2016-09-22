@@ -606,6 +606,7 @@ class Fsm():
             self.state_config.write(configfile)
 
         self.grab_direction = 'L'
+        # TODO: wtf is this shit?
         self.grabPoint = [0.23, 0.07, 0.30]
         self.grab_number = 1
 
