@@ -39,12 +39,9 @@ class ManipulationClass():
         heightOffset_lift = 0.0
         rotation = 1
 
-        if self.grab_direction == 'L':
-            safeUp = [0.1, self.grab_number * 0.20, 0.41, 0, 0, 0]
-            beh_pose = [0.05, self.grab_number * 0.05, 0.41, 0, 0, 0]
-        else:
-            safeUp = [0.1, (-1) * self.grab_number * 0.20, 0.41, 0, 0, 0]
-            beh_pose = [0.05, (-1) * self.grab_number * 0.05, 0.41, 0, 0, 0]
+        safeUp = [0.1, self.grab_number * 0.20, 0.41, 0, 0, 0]
+        beh_pose = [0.05, self.grab_number * 0.05, 0.41, 0, 0, 0]
+
 
         hand = str(self.grab_direction) + 'Hand'
         arm = str(self.grab_direction) + 'Arm'
@@ -58,13 +55,8 @@ class ManipulationClass():
 
         #TODO: check all these offsets, remove hardcoding
         if self.Nao_object == 'Cup':
-            # TODO: add different offset for different hands, i guess
-            if self.grab_direction == 'L':
-                sideOffset_app = self.grab_number * 0.04
-                rotation= (-1) * self.grab_number * 1.57
-            else:
-                sideOffset_app = (-1) * self.grab_number * 0.04
-                rotation= self.grab_number * 1.57
+            sideOffset_app = self.grab_number * 0.04
+            rotation = (-1) * self.grab_number * 1.57
             heightOffset_lift = 0.05
             xOffset_lift =0.0
             xOffset_grab = 0.0

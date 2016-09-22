@@ -562,6 +562,7 @@ class Fsm():
         #saying = ''
         # if the object is not too large to grab, hand to grab object with is determined and grabbing starts
         if d < maxGrabDiameter:
+            # TODO: change direction based on where the hole is
             if direction == -1:
                 if self.grabPoint[1] > 0:
                     direction = 0
@@ -610,7 +611,7 @@ class Fsm():
         #self.grab_direction = 'L'
         # TODO: wtf is this shit?
         #self.grabPoint = [0.23, 0.07, 0.30]
-        self.grab_number = 1
+        #self.grab_number = 1
 
         manipulation = objectManipulation.ManipulationClass(self.motionproxy, self.Nao_object, self.grab_number,
                                                             self.grabPoint, self.memory, self.postureproxy,
