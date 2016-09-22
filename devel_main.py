@@ -535,6 +535,7 @@ class Fsm():
         if self.Nao_object == 'Cup':
             d=math.sqrt(pow(tRight[0]-tLeft[0],2)+pow(tRight[1]-tLeft[1],2))
         else:
+            # TODO: wtf are these offsets
             offset_x = d_hor/2
             offset_z = d_ver/2
             d = d_ver
@@ -557,9 +558,9 @@ class Fsm():
             print('Grab point corrected: ', self.grabPoint)
         else:
             self.grabPoint = [tBottom[0]+offset_x, tBottom[1], tBottom[2]+offset_z]
-        saying = ''
+        #saying = ''
         # if the object is not too large to grab, hand to grab object with is determined and grabbing starts
-        if d<maxGrabDiameter:
+        if d < maxGrabDiameter:
             if direction == -1:
                 if self.grabPoint[1] > 0:
                     direction = 0
@@ -568,15 +569,15 @@ class Fsm():
             print ('Grab point: ', self.grabPoint)
             if direction == 0:
                 self.grab_direction = 'L'
-                self.grab_number= 1
+                self.grab_number = 1
                 print ('Direction: left')
             else:
                 self.grab_direction = 'R'
-                self.grab_number  = -1
+                self.grab_number = -1
                 print('Direction: right')
             if self.diagnostic == 1:
-            # diagnostic enables user to see image processing data and decide is program should continue or not
-                stsel=input('Does this look OK to you (1 = yes / 0 = no)? ')
+                # diagnostic enables user to see image processing data and decide is program should continue or not
+                stsel = input('Does this look OK to you (1 = yes / 0 = no)? ')
             else:
                 stsel = 1
             if stsel == 1:
@@ -605,9 +606,9 @@ class Fsm():
         with open(self.state_file, 'wb') as configfile:
             self.state_config.write(configfile)
 
-        self.grab_direction = 'L'
+        #self.grab_direction = 'L'
         # TODO: wtf is this shit?
-        self.grabPoint = [0.23, 0.07, 0.30]
+        #self.grabPoint = [0.23, 0.07, 0.30]
         self.grab_number = 1
 
         manipulation = objectManipulation.ManipulationClass(self.motionproxy, self.Nao_object, self.grab_number,

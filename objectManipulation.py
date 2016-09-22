@@ -39,8 +39,12 @@ class ManipulationClass():
         heightOffset_lift = 0.0
         rotation = 1
 
-        safeUp = [0.1, self.grab_number * 0.20, 0.41, 0, 0, 0]
-        beh_pose = [0.05, self.grab_number * 0.05, 0.41, 0, 0, 0]
+        if self.grab_direction == 'L':
+            safeUp = [0.1, self.grab_number * 0.20, 0.41, 0, 0, 0]
+            beh_pose = [0.05, self.grab_number * 0.05, 0.41, 0, 0, 0]
+        else:
+            safeUp = [0.1, (-1) * self.grab_number * 0.20, 0.41, 0, 0, 0]
+            beh_pose = [0.05, (-1) * self.grab_number * 0.05, 0.41, 0, 0, 0]
 
         hand = str(self.grab_direction) + 'Hand'
         arm = str(self.grab_direction) + 'Arm'
@@ -54,8 +58,13 @@ class ManipulationClass():
 
         #TODO: check all these offsets, remove hardcoding
         if self.Nao_object == 'Cup':
-            sideOffset_app= self.grab_number * 0.04
-            rotation= (-1) * self.grab_number * 1.57
+            # TODO: add different offset for different hands, i guess
+            if self.grab_direction == 'L':
+                sideOffset_app = self.grab_number * 0.04
+                rotation= (-1) * self.grab_number * 1.57
+            else:
+                sideOffset_app = (-1) * self.grab_number * 0.04
+                rotation= self.grab_number * 1.57
             heightOffset_lift = 0.05
             xOffset_lift =0.0
             xOffset_grab = 0.0
@@ -63,6 +72,7 @@ class ManipulationClass():
             heightOffset_app = 0.0
         else:
             if self.Nao_object == 'Frog':
+                # TODO: frog should be approached from the top, offsets need to be configured
                 heightOffset_app = 0.12
                 heightOffset_lift = 0.12
                 heightOffset_grab = 0.0
@@ -70,6 +80,7 @@ class ManipulationClass():
                 xOffset_grab = 0.0
             else:
                 if self.Nao_object == 'Plane':
+                    # TODO: plane needs to be defined.
                     heightOffset_app = 0.12
                     heightOffset_lift = 0.12
                     heightOffset_grab = 0.0
@@ -101,7 +112,7 @@ class ManipulationClass():
             if test:
                 return None
             self.motionproxy.positionInterpolations([chainName], 2, liftPoint, mask, 1, True)
-            time.sleep(0.5)
+            #time.sleep(0.5)
 
             #self.motionproxy.positionInterpolation(chainName, 2, beh_pose, mask, 2, True)
             self.motionproxy.positionInterpolations(["Torso"], 2, beh_pose, mask, 1, True)
