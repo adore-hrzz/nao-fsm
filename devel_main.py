@@ -551,6 +551,7 @@ class Fsm():
 
         grabPoint=None
         if self.Nao_object == 'Cup':
+            # TODO: added 0.03 to height, needs to be changed to parameter in config file
             self.grabPoint=LinesAndPlanes.planePlaneIntersection(self.motionproxy,self.h,d,grabPointImage,bottomPoint)
             print('Grab point: ', grabPoint)
             if (self.grabPoint[2] < self.h) or (self.grabPoint[2] > (self.h + 0.07)):
