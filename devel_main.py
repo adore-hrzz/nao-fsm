@@ -734,7 +734,7 @@ class Fsm():
         bestColor = min(avgcolors)
         print('bestcolor %s' % bestColor)
         # TODO: check 0.2 threshold
-        if (bestColor > 0.45):
+        if (bestColor > 0.4):
             return None
         maxblobidx = -1
         maxarea = 0
@@ -757,11 +757,13 @@ class Fsm():
         print("hierarchy[objectID][2] %s" % hierarchy[objectID][2])
         print("self.Nao_object %s" % self.Nao_object)
 
-        if hierarchy[objectID][2]<0 or self.Nao_object != 'Cup':
+        if hierarchy[objectID][2] < 0 or self.Nao_object != 'Cup':
             print 'Assuming no hole in object'
             #no holes in object
             objMoments = cv2.moments(contours[objectID])
             grabPoint = [objMoments['m01']/objMoments['m00'], objMoments['m10']/objMoments['m00']]
+
+            # TODO: reevaluate grab direction
             if (grabPoint[1]>320):
                 direction = 1
             else:

@@ -123,7 +123,11 @@ class ManipulationClass():
 
         elif action == "putBack":
             grabPoint2 = [self.grabPoint[0] + xOffset_grab + 0.1, self.grabPoint[1] + sideOffset_grab, self.grabPoint[2] + heightOffset_grab, rotation, 0, 0]
-            grabPoint3 = [self.grabPoint[0] + xOffset_grab + 0.05, self.grabPoint[1] + sideOffset_grab + self.grab_number * 0.15, self.grabPoint[2] + 0.10, rotation, 0, 0]
+            if self.grab_direction == 'L':
+                grabPoint3 = [self.grabPoint[0] + xOffset_grab + 0.05, self.grabPoint[1] + sideOffset_grab + self.grab_number * 0.15, self.grabPoint[2] + 0.10, rotation, 0, 0]
+            else:
+                grabPoint3 = [self.grabPoint[0] + xOffset_grab + 0.05, self.grabPoint[1] - sideOffset_grab - self.grab_number * 0.15, self.grabPoint[2] + 0.10, rotation, 0, 0]
+
             self.motionproxy.setAngles(handName, 0.0, 0.3)
             #self.motionproxy.positionInterpolation(chainName, 2, grabPoint, mask, 2, True)
             self.motionproxy.positionInterpolation(chainName, 2, grabPoint2, mask, 2, True)
