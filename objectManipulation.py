@@ -91,7 +91,10 @@ class ManipulationClass():
         approachPoint = [self.grabPoint[0] + xOffset_app, self.grabPoint[1] + sideOffset_app, self.grabPoint[2]+heightOffset_app + 0.02, rotation, 0, 0]
         grabPoint = [self.grabPoint[0] + xOffset_grab, self.grabPoint[1] + sideOffset_grab, self.grabPoint[2] + heightOffset_grab - 0.01, rotation, 0, 0]
         liftPoint = [self.grabPoint[0] + xOffset_lift, self.grabPoint[1] + sideOffset_lift, self.grabPoint[2] + heightOffset_lift, rotation, 0, 0]
-
+        # TODO: remove these prints
+        print("Approach point %s" % approachPoint)
+        print("Grab point %s" % grabPoint)
+        print("Lift point %s" % liftPoint)
         if action == "Grab":
             self.motionproxy.setAngles(hand,1.0,0.4)
             listOfPointsBeforeGrasp = [safeUp, approachPoint, grabPoint]
