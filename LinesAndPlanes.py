@@ -18,9 +18,9 @@ def getLineEquation(motionproxy,space,u,v):
     transformList=almath.vectorFloat(transform)
     robotToCamera = almath.Transform(transformList)
 
-    cx=319.5
-    cy=239.5
-    f=563.19
+    cx=319.79047623
+    cy=209.28243832
+    f= (555.66572641+553.81845875)/2.0
 
     vec=np.array([f,(cx-v),(cy-u)])
     vec=vec/math.sqrt(pow(f,2)+pow(cx-v,2)+pow(cy-u,2))

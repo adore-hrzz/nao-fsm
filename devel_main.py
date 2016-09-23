@@ -781,7 +781,15 @@ class Fsm():
             objectBottomPoint = [(objectBB[0]+objectBB[2])/2.0, objectBB[3]]
             objectTopPoint = [(objectBB[0]+objectBB[2])/2.0, objectBB[1]]
 
+
+            print(objectBB)
+
             cv2.rectangle(self.camera.image,(objectBB[0], objectBB[1]), (objectBB[2], objectBB[3]), (255,255,255))
+            cv2.putText(self.camera.image, 'bottom',(int(objectBottomPoint[0]), int(objectBottomPoint[1])), cv2.FONT_HERSHEY_SIMPLEX,2.0,(0,0,255))
+            #cv2.putText(self.camera.image, '1',(objectBB[2], objectBB[1]), cv2.FONT_HERSHEY_SIMPLEX,0.3,(255,100,100))
+            #cv2.putText(self.camera.image, '2',(objectBB[0], objectBB[3]), cv2.FONT_HERSHEY_SIMPLEX,0.3,(255,100,100))
+            #cv2.putText(self.camera.image, '3',(objectBB[2], objectBB[3]), cv2.FONT_HERSHEY_SIMPLEX,0.3,(255,100,100))
+
             cv2.imwrite("asdf.png", self.camera.image)
 
             print('Showing image pixel points: ')

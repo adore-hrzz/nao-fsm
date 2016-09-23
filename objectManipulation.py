@@ -39,7 +39,7 @@ class ManipulationClass():
         heightOffset_lift = 0.0
         rotation = 1
 
-        safeUp = [0.1, self.grab_number * 0.20, 0.41, 0, 0, 0]
+        safeUp = [0.1, self.grab_number * 0.15, 0.41, 0, 0, 0]
         beh_pose = [0.05, self.grab_number * 0.05, 0.41, 0, 0, 0]
 
 
@@ -70,6 +70,15 @@ class ManipulationClass():
                 heightOffset_grab = 0.0
                 rotation = 0.0
                 xOffset_grab = 0.0
+
+            elif self.Nao_object == 'Cylinder':
+                rotation = (-1) * self.grab_number * 1.57
+                xOffset_app = -0.01
+                xOffset_grab = 0.01
+                sideOffset_app = self.grab_number * 0.04
+                sideOffset_grab = self.grab_number * 0.0#15
+                heightOffset_app = 0.02
+                heightOffset_grab = 0.02
             else:
                 if self.Nao_object == 'Plane':
                     # TODO: plane needs to be defined.
@@ -118,7 +127,7 @@ class ManipulationClass():
             if self.grab_direction == 'L':
                 grabPoint3 = [self.grabPoint[0] + xOffset_grab + 0.05, self.grabPoint[1] + sideOffset_grab + self.grab_number * 0.15, self.grabPoint[2] + 0.10, rotation, 0, 0]
             else:
-                grabPoint3 = [self.grabPoint[0] + xOffset_grab + 0.05, self.grabPoint[1] - sideOffset_grab - self.grab_number * 0.15, self.grabPoint[2] + 0.10, rotation, 0, 0]
+                grabPoint3 = [self.grabPoint[0] + xOffset_grab + 0.05, self.grabPoint[1] - sideOffset_grab + self.grab_number * 0.15, self.grabPoint[2] + 0.10, rotation, 0, 0]
 
             self.motionproxy.setAngles(handName, 0.0, 0.3)
             #self.motionproxy.positionInterpolation(chainName, 2, grabPoint, mask, 2, True)
