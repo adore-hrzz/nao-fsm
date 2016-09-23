@@ -21,15 +21,17 @@ def get3Dpoint(motionproxy, space, u, v, planeCoeffs):
 
     T_alCV = np.zeros((4, 4), dtype=np.float64)
     T_alCV[0, 2] = 1    # this means Z'= X
-    T_alCV[1, 0] = -1    # this means X'= Y
-    T_alCV[2, 1] = -1    # this means Y'= Z
+    T_alCV[1, 0] = 1    # this means X'= Y
+    T_alCV[2, 1] = 1    # this means Y'= Z
     T_alCV[3, 3] = 1    # homogenous coordinates!
 
     T_camCv = np.dot(T_camAL, T_alCV)
-    cam_point = np.asarray([T_camCv[0,3], T_camCv[1,3], T_camCv[2,3]])
-    pix_point = np.asarray([u-cx, v-cy, f])
+    cam_point = np.asarray([T_camAL[0,3], T_camAL[1,3], T_camAL[2,3]])
+    pix_point = np.asarray([cx-u, cy-v, f, 1])
+    pix_point_transformed = np.dot(T_camCv, pix_point)
+    pix_point_transformed = pix_point_transformed[0:3]
 
-    pix_vec = pix_point - cam_point
+    pix_vec = pix_point_transformed - cam_point
     pix_vec = pix_vec / np.linalg.norm(pix_vec)
 
     A = planeCoeffs[0]
@@ -37,11 +39,10 @@ def get3Dpoint(motionproxy, space, u, v, planeCoeffs):
     C = planeCoeffs[2]
     D = planeCoeffs[3]
 
-    t = (-1)*(A*T_camCv[0,3] + B*T_camCv[1,3] + C*T_camCv[2,3] + D)/(A*pix_vec[0]+B*pix_vec[1]+C*pix_vec[2])
-
+    t = (-1)*(A*T_camCv[0, 3] + B*T_camCv[1, 3] + C*T_camCv[2, 3] + D)/(A*pix_vec[0]+B*pix_vec[1]+C*pix_vec[2])
     point = cam_point + t*pix_vec
-    print(point)
 
+    return point
 
 
 
@@ -53,25 +54,7 @@ def getLineEquation(motionproxy,space,u,v):
     transform=motionproxy.getTransform("CameraBottom",space,True)
     transformList=almath.vectorFloat(transform)
     robotToCamera = almath.Transform(transformList)
-    T_camAL = np.asarray(transform)
-    T_camAL = np.reshape(T_camAL, (4, 4))
 
-    T_alCV = np.zeros((4, 4), dtype=np.float64)
-    T_alCV[0, 2] = 1    # this means Z'= X
-    T_alCV[1, 0] = -1    # this means X'= Y
-    T_alCV[2, 1] = -1    # this means Y'= Z
-    T_alCV[3, 3] = 1    # homogenous coordinates!
-
-    T_camCv = np.dot(T_camAL, T_alCV)
-
-    #print(T_camCv.reshape((1,16)).tolist()[0])
-    #print(robotToCamera)
-    print("-------------------------------------------------")
-
-    #robotToCamera = almath.Transform(almath.vectorFloat(T_camCv.reshape((1,16)).tolist()[0]))
-    print(robotToCamera)
-    #print(T_camCv)
-    #robotToCamera = almath.Transform([T_camCv])
 
     cx = 319.79047623
     cy = 209.28243832
@@ -79,11 +62,9 @@ def getLineEquation(motionproxy,space,u,v):
 
     vec=np.array([f,(cx-v),(cy-u)])
     vec=vec/math.sqrt(pow(f,2)+pow(cx-v,2)+pow(cy-u,2))
-    print(vec)
-    #T_point = np.asarray(almath.Transform.fromPosition(vec[0],vec[1],vec[2]))
 
     #pointLocation = T_camCv*T_point
-    pointLocationTransform=robotToCamera*almath.Transform.fromPosition(vec[1], vec[2], vec[0])
+    pointLocationTransform=robotToCamera*almath.Transform.fromPosition(vec[0], vec[1], vec[2])
     cameraLocationTransform=robotToCamera
 
     k=np.array([cameraLocationTransform.r1_c4, cameraLocationTransform.r2_c4, cameraLocationTransform.r3_c4])
