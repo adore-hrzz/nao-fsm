@@ -517,6 +517,9 @@ class Fsm():
             with open(self.state_file, 'wb') as configfile:
                 self.state_config.write(configfile)
             #time.sleep(5)
+        print("%%%%%%%%%%%%%%%%%%%%--------------------%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+        print(LinesAndPlanes.get3Dpoint(self.motionproxy, 2, bottomPoint[0], bottomPoint[1]))
+        print("%%%%%%%%%%%%%%%%%%%%--------------------%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
         lineLeft = LinesAndPlanes.getLineEquation(self.motionproxy,2,wLeft[0],wLeft[1])
         tLeft = LinesAndPlanes.intersectWithPlane(lineLeft, 2, ( 0, 0, 1, -self.h))
 
