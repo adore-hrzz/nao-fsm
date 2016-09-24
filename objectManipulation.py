@@ -107,8 +107,9 @@ class ManipulationClass():
 
             self.motionproxy.wbEnableEffectorControl(chainName, True)
             self.motionproxy.positionInterpolations([chainName], 2, listOfPointsBeforeGrasp,mask,listOfTimesBeforeGrasp,True)
-            # TODO: remove this print
-            print(listOfPointsBeforeGrasp)
+
+            # robot fails to reach the goal point
+            # motion command is repeated until the difference between goal point and reach point is small enough
             goal_point = np.asarray(grabPoint[0:3])
             reached_point = np.asarray(self.motionproxy.getPosition(chainName, 2, True)[0:3])
             diff = np.linalg.norm(reached_point-goal_point)
@@ -120,18 +121,23 @@ class ManipulationClass():
                 print('Goal point %s' % goal_point)
                 print('Reached point %s' % reached_point)
                 print('Diff %s' % diff)
+
+            # close hand (grab the object)
             self.motionproxy.setAngles(handName, 0.0, 0.3)
-            #time.sleep(1.0)
+
+            # TODO: check what this does
             test = self.memory.getData('ObjectGrabber')
             if test:
                 return None
+
+
             self.motionproxy.positionInterpolations([chainName], 2, liftPoint, mask, 1, True)
             #time.sleep(0.5)
 
             #self.motionproxy.positionInterpolation(chainName, 2, beh_pose, mask, 2, True)
             self.motionproxy.positionInterpolations(["Torso"], 2, beh_pose, mask, 1, True)
             return 1
-
+        # TODO: check all of this code, putting back the object needs some polishing too.
         elif action == "putBack":
             grabPoint2 = [self.grabPoint[0] + xOffset_grab + 0.1, self.grabPoint[1] + sideOffset_grab, self.grabPoint[2] + heightOffset_grab, rotation, 0, 0]
             if self.grab_direction == 'L':

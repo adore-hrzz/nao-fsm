@@ -556,8 +556,9 @@ class Fsm():
 
         grabPoint=None
         if self.Nao_object == 'Cup':
-            # TODO: added 0.03 to height, needs to be changed to parameter in config file
-            self.grabPoint=LinesAndPlanes.planePlaneIntersection(self.motionproxy,self.h,d,grabPointImage,bottomPoint)
+            # TODO: replaced the line, need to test new behaviour
+            self.grabPoint=LinesAndPlanes.planePlaneIntersection(self.motionproxy, self.h, d, grabPointImage,bottomPoint)
+            print('New grab point should be\n %s' % LinesAndPlanes.get3Dpoint(self.motionproxy, 2, grabPointImage[1], grabPointImage[0], [0, 0, 1, -self.h]))
             print('Grab point: ', grabPoint)
             if (self.grabPoint[2] < self.h) or (self.grabPoint[2] > (self.h + 0.07)):
                 self.grabPoint[2] = self.h + 0.06
@@ -715,17 +716,13 @@ class Fsm():
         contours, hierarchy = cv2.findContours(binaryImage, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
 
         hierarchy = hierarchy[0]
-        print("Hierarchy %s: " % hierarchy)
         areas = []
         avgcolors = []
         for i in range(0, len(contours)):
-            print('Looping contours %s' % i)
             if hierarchy[i][3] >= 0:
-                print('hierarchy[i][3] >= 0:')
                 areas += [0]
                 avgcolors += [0.5]
             else:
-                print('else')
                 tempDraw = np.zeros(hueImg.shape)
                 cv2.drawContours(tempDraw,contours,i, 255, -1)
                 area = len(tempDraw[np.nonzero(tempDraw)])
@@ -733,9 +730,7 @@ class Fsm():
                 avgcolor/=area
                 areas+=[area]
                 avgcolors+=[min(abs(avgcolor-self.objectColor), abs(1-avgcolor-self.objectColor))]
-        print('avgcolors %s' % avgcolors)
         bestColor = min(avgcolors)
-        print('bestcolor %s' % bestColor)
         # TODO: check 0.2 threshold
         if (bestColor > 0.4):
             return None
@@ -756,9 +751,6 @@ class Fsm():
 
         objBox = NaoImageProcessing.getBB(contours[objectID])
         objectBB = objBox
-
-        print("hierarchy[objectID][2] %s" % hierarchy[objectID][2])
-        print("self.Nao_object %s" % self.Nao_object)
 
         if hierarchy[objectID][2] < 0 or self.Nao_object != 'Cup':
             print 'Assuming no hole in object'
@@ -840,7 +832,7 @@ class Fsm():
                     holeBB = NaoImageProcessing.getBB(contours[bestHole])
                     cv2.rectangle(self.camera.image,(holeBB[0], holeBB[1]), (holeBB[2], holeBB[3]), (255,255,255))
                     cv2.rectangle(self.camera.image,(objectBB[0], objectBB[1]), (objectBB[2], objectBB[3]), (255,255,255))
-                    cv2.imwrite("asdf.png", self.camera.image)
+
                     direction = math.copysign(1,side)
                     print direction
                     if (side>0):
@@ -856,6 +848,15 @@ class Fsm():
                         wRight=[objectBB[2], holeBB[1]]
                         objectBottomPoint = [objectBB[2], (holeBB[1]+objectBB[1])/2.0]
                         objectTopPoint = [objectBB[0], (holeBB[1]+objectBB[1])/2.0]
+                    cv2.circle(self.camera.image, (int(grabPoint[1]), int(grabPoint[0])), 3, (0, 255, 0), -1)
+                    point_to_draw = [(holeBB[0]+holeBB[2])/2, (holeBB[1]+holeBB[3])/2]
+                    cv2.putText(self.camera.image, '0',(int(holeBB[0]), int(holeBB[1])), cv2.FONT_HERSHEY_SIMPLEX,0.3,(0,0,255))
+                    cv2.putText(self.camera.image, '1',(holeBB[2], holeBB[1]), cv2.FONT_HERSHEY_SIMPLEX,0.3,(0,0,255))
+                    cv2.putText(self.camera.image, '2',(holeBB[0], holeBB[3]), cv2.FONT_HERSHEY_SIMPLEX,0.3,(0,0,255))
+                    cv2.putText(self.camera.image, '3',(holeBB[2], holeBB[3]), cv2.FONT_HERSHEY_SIMPLEX,0.3,(0,0,255))
+                    cv2.circle(self.camera.image, (int(point_to_draw[0]), int(point_to_draw[1])), 3, (0, 0, 255), -1)
+                    cv2.imwrite("asdf.png", self.camera.image)
+                #grabPoint = point_to_draw
 
         print ('Grab pixel point: ',  grabPoint)
 
