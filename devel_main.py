@@ -266,14 +266,16 @@ class Fsm():
 
         self.alvideoproxy = ALProxy("ALVideoDevice", self.IP, self.PORT)
 
-        try:
-            self.video = self.alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
-        except RuntimeError as e:
-            if e.args[0].split()[0] == 'ALVideoDevice::subscribe':
-                self.alvideoproxy.unsubscribe("video")
-                self.video = self.alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
-            else:
-                raise e
+        self.video = self.alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
+
+        #try:
+        #    self.video = self.alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
+        #except RuntimeError as e:
+        #    if e.args[0].split()[0] == 'ALVideoDevice::subscribe':
+        #        self.alvideoproxy.unsubscribe("video")
+        #        self.video = self.alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
+        #    else:
+        #        raise e
 
         self.alvideoproxy.setParam(18,1)
 
