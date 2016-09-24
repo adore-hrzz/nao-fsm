@@ -568,13 +568,13 @@ class Fsm():
         elif self.Nao_object == 'Frog':
             print('Difference between [0] coordinates: %s' % (bottomPoint[0]-grabPointImage[0]))
             print('Difference between [1] coordinates: %s' % (bottomPoint[1]-grabPointImage[1]))
-            self.grabPoint = LinesAndPlanes.get3Dpoint(self.motionproxy, 2, grabPointImage[0], grabPointImage[1], [0, 0, 1, -self.h-0.01])
+            self.grabPoint = LinesAndPlanes.get3Dpoint(self.motionproxy, 2, grabPointImage[0], grabPointImage[1], [0, 0, 1, -self.h-0.015])
             if bottomPoint[0]-grabPointImage[0] < 0:
                 print('Moving point to the right')
-                self.grabPoint[1] = self.grabPoint[1] - 0.015
+                self.grabPoint[1] = self.grabPoint[1] - 0.005
             else:
                 print('Moving point to the left')
-                self.grabPoint[1] = self.grabPoint[1] + 0.015
+                self.grabPoint[1] = self.grabPoint[1] + 0.005
 
 
         else:
@@ -644,16 +644,27 @@ class Fsm():
         if not work:
             return None
     # depending on type of object a corresponding gesture is executed
+        if self.Nao_object == 'Cup':
+            if self.grab_direction == 'L':
+                self.behaviour = 'Drinking (left)'
+            else:
+                self.behaviour = 'Drinking (right)'
         if self.Nao_object == 'Frog':
-            self.behaviour = 'frog' + str(self.grab_direction)
+            if self.grab_direction == 'L':
+                self.behaviour = 'Frog (left)'
+            else:
+                self.behaviour = 'Frog (right)'
         else:
-            self.behaviour = self.Nao_object.lower() + str(self.grab_direction)
+            if self.grab_direction == 'L':
+                self.behaviour = 'Frog (left)'
+            else:
+                self.behaviour = 'Frog (right)'
         print(self.behaviour)
 
-        #self.behaveproxy.runBehavior(self.behaviour)
-        print("PERFORMING GESTURES")
-        time.sleep(1.0)
-        print("PERFORMING GESTURES")
+        self.behaveproxy.runBehavior(self.behaviour)
+        #print("PERFORMING GESTURES")
+        #time.sleep(1.0)
+        #print("PERFORMING GESTURES")
         if self.behaviour == 'frog' + str(self.grab_direction):
             self.behaviour = 'frog'
         self.Gesture_robot = self.Nao_object

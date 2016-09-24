@@ -100,8 +100,8 @@ class ManipulationClass():
         #print("Lift point %s" % liftPoint)
         if action == "Grab":
             self.motionproxy.setAngles(hand,1.0,0.4)
-            listOfPointsBeforeGrasp = [safeUp, approachPoint, grabPoint]
-            listOfTimesBeforeGrasp = [2, 4, 5]
+            listOfPointsBeforeGrasp = [safeUp, approachPoint] #, grabPoint]
+            listOfTimesBeforeGrasp = [2, 4]#, 5]
 
             test = self.memory.getData('ObjectGrabber')
             if test:
@@ -109,7 +109,17 @@ class ManipulationClass():
 
             self.motionproxy.wbEnableEffectorControl(chainName, True)
             self.motionproxy.positionInterpolations([chainName], 2, listOfPointsBeforeGrasp,mask,listOfTimesBeforeGrasp,True)
-
+            goal_point = np.asarray(approachPoint[0:3])
+            reached_point = np.asarray(self.motionproxy.getPosition(chainName, 2, True)[0:3])
+            diff = np.linalg.norm(reached_point-goal_point)
+            while diff > 0.03:
+                interval = diff * 10
+                self.motionproxy.positionInterpolations([chainName], 2, approachPoint, mask, [interval], True)
+                reached_point = np.asarray(self.motionproxy.getPosition(chainName, 2, True)[0:3])
+                diff = np.linalg.norm(reached_point-goal_point)
+                print('Goal point %s' % goal_point)
+                print('Reached point %s' % reached_point)
+                print('Diff %s' % diff)
             # robot fails to reach the goal point
             # motion command is repeated until the difference between goal point and reach point is small enough
             goal_point = np.asarray(grabPoint[0:3])
