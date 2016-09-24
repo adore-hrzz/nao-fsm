@@ -564,6 +564,19 @@ class Fsm():
             #if (self.grabPoint[2] < self.h) or (self.grabPoint[2] > (self.h + 0.07)):
             #    self.grabPoint[2] = self.h + 0.06
             #print('Grab point corrected: ', self.grabPoint)
+
+        elif self.Nao_object == 'Frog':
+            print('Difference between [0] coordinates: %s' % (bottomPoint[0]-grabPointImage[0]))
+            print('Difference between [1] coordinates: %s' % (bottomPoint[1]-grabPointImage[1]))
+            self.grabPoint = LinesAndPlanes.get3Dpoint(self.motionproxy, 2, grabPointImage[0], grabPointImage[1], [0, 0, 1, -self.h-0.01])
+            if bottomPoint[0]-grabPointImage[0] < 0:
+                print('Moving point to the right')
+                self.grabPoint[1] = self.grabPoint[1] - 0.015
+            else:
+                print('Moving point to the left')
+                self.grabPoint[1] = self.grabPoint[1] + 0.015
+
+
         else:
             self.grabPoint = [new_point[0], new_point[1], new_point[2]+0.03]
         #saying = ''
@@ -757,7 +770,7 @@ class Fsm():
             print 'Assuming no hole in object'
             #no holes in object
             objMoments = cv2.moments(contours[objectID])
-            grabPoint = [objMoments['m01']/objMoments['m00'], objMoments['m10']/objMoments['m00']]
+            grabPoint = [objMoments['m10']/objMoments['m00'], objMoments['m01']/objMoments['m00']]
 
             # TODO: reevaluate grab direction
             if (grabPoint[1]>320):
@@ -779,7 +792,9 @@ class Fsm():
             print(objectBB)
 
             cv2.rectangle(self.camera.image,(objectBB[0], objectBB[1]), (objectBB[2], objectBB[3]), (255,255,255))
-            cv2.putText(self.camera.image, 'bottom',(int(objectBottomPoint[0]), int(objectBottomPoint[1])), cv2.FONT_HERSHEY_SIMPLEX,2.0,(0,0,255))
+            #cv2.putText(self.camera.image, 'bottom',(int(objectBottomPoint[0]), int(objectBottomPoint[1])), cv2.FONT_HERSHEY_SIMPLEX,2.0,(0,0,255))
+            cv2.circle(self.camera.image, (int(grabPoint[0]), int(grabPoint[1])), 3, (0, 255, 0), -1)
+            cv2.circle(self.camera.image, (int(objectBottomPoint[0]), int(objectBottomPoint[1])), 3, (0, 0, 255), -1)
             #cv2.putText(self.camera.image, '1',(objectBB[2], objectBB[1]), cv2.FONT_HERSHEY_SIMPLEX,0.3,(255,100,100))
             #cv2.putText(self.camera.image, '2',(objectBB[0], objectBB[3]), cv2.FONT_HERSHEY_SIMPLEX,0.3,(255,100,100))
             #cv2.putText(self.camera.image, '3',(objectBB[2], objectBB[3]), cv2.FONT_HERSHEY_SIMPLEX,0.3,(255,100,100))
@@ -819,7 +834,7 @@ class Fsm():
                     cv2.imwrite("asdf.png", self.camera.image)
                     objMoments = cv2.moments(contours[objectID])
                     grabPoint = [objMoments['m10']/objMoments['m00'], objMoments['m01']/objMoments['m00']]
-                    if (grabPoint[0]>320):
+                    if (grabPoint[1]>320):
                         direction = 1
                     else:
                         direction = -1
