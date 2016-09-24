@@ -101,7 +101,7 @@ class ManipulationClass():
         if action == "Grab":
             self.motionproxy.setAngles(hand,1.0,0.4)
             listOfPointsBeforeGrasp = [safeUp, approachPoint, grabPoint]
-            listOfTimesBeforeGrasp = [5, 10, 15]
+            listOfTimesBeforeGrasp = [2, 4, 5]
 
             test = self.memory.getData('ObjectGrabber')
             if test:
