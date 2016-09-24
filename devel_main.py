@@ -554,15 +554,16 @@ class Fsm():
         print ('Object height : ', d_ver)
         print ('Object width : ', d_hor)
 
-        grabPoint=None
+
         if self.Nao_object == 'Cup':
             # TODO: replaced the line, need to test new behaviour
-            self.grabPoint=LinesAndPlanes.planePlaneIntersection(self.motionproxy, self.h, d, grabPointImage,bottomPoint)
-            print('New grab point should be\n %s' % LinesAndPlanes.get3Dpoint(self.motionproxy, 2, grabPointImage[1], grabPointImage[0], [0, 0, 1, -self.h]))
-            print('Grab point: ', grabPoint)
-            if (self.grabPoint[2] < self.h) or (self.grabPoint[2] > (self.h + 0.07)):
-                self.grabPoint[2] = self.h + 0.06
-            print('Grab point corrected: ', self.grabPoint)
+            #self.grabPoint=LinesAndPlanes.planePlaneIntersection(self.motionproxy, self.h, d, grabPointImage,bottomPoint)
+            self.grabPoint = LinesAndPlanes.get3Dpoint(self.motionproxy, 2, grabPointImage[0], grabPointImage[1], [0, 0, 1, -self.h-0.03])
+            print('Grab point calculated by get3Dpoint: ', self.grabPoint)
+            # TODO: removed the correction, check if this messess anything up
+            #if (self.grabPoint[2] < self.h) or (self.grabPoint[2] > (self.h + 0.07)):
+            #    self.grabPoint[2] = self.h + 0.06
+            #print('Grab point corrected: ', self.grabPoint)
         else:
             self.grabPoint = [new_point[0], new_point[1], new_point[2]+0.03]
         #saying = ''
@@ -856,7 +857,7 @@ class Fsm():
                     cv2.putText(self.camera.image, '3',(holeBB[2], holeBB[3]), cv2.FONT_HERSHEY_SIMPLEX,0.3,(0,0,255))
                     cv2.circle(self.camera.image, (int(point_to_draw[0]), int(point_to_draw[1])), 3, (0, 0, 255), -1)
                     cv2.imwrite("asdf.png", self.camera.image)
-                #grabPoint = point_to_draw
+                grabPoint = point_to_draw
 
         print ('Grab pixel point: ',  grabPoint)
 

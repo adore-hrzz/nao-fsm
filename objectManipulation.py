@@ -56,10 +56,12 @@ class ManipulationClass():
         #TODO: check all these offsets, remove hardcoding
         if self.Nao_object == 'Cup':
             sideOffset_app = self.grab_number * 0.04
+            xOffset_app = 0.03
+            sideOffset_grab = self.grab_number * 0.01
             rotation = (-1) * self.grab_number * 1.57
             heightOffset_lift = 0.05
             xOffset_lift =0.0
-            xOffset_grab = 0.0
+            xOffset_grab = 0.00
             heightOffset_grab = 0.0
             heightOffset_app = 0.0
         else:
@@ -113,7 +115,7 @@ class ManipulationClass():
             goal_point = np.asarray(grabPoint[0:3])
             reached_point = np.asarray(self.motionproxy.getPosition(chainName, 2, True)[0:3])
             diff = np.linalg.norm(reached_point-goal_point)
-            while diff > 0.008:
+            while diff > 0.015:
                 interval = diff * 10
                 self.motionproxy.positionInterpolations([chainName], 2, grabPoint, mask, [interval], True)
                 reached_point = np.asarray(self.motionproxy.getPosition(chainName, 2, True)[0:3])
