@@ -73,12 +73,12 @@ class ManipulationClass():
 
             elif self.Nao_object == 'Cylinder':
                 rotation = (-1) * self.grab_number * 1.57
-                xOffset_app = -0.01
+                xOffset_app = 0.02
                 xOffset_grab = 0.01
                 sideOffset_app = self.grab_number * 0.04
-                sideOffset_grab = self.grab_number * 0.0#15
-                heightOffset_app = 0.02
-                heightOffset_grab = 0.02
+                sideOffset_grab = self.grab_number * 0.01
+                heightOffset_app = 0.01
+                heightOffset_grab = 0.01
             else:
                 if self.Nao_object == 'Plane':
                     # TODO: plane needs to be defined.
@@ -93,9 +93,9 @@ class ManipulationClass():
         grabPoint = [self.grabPoint[0] + xOffset_grab, self.grabPoint[1] + sideOffset_grab, self.grabPoint[2] + heightOffset_grab - 0.01, rotation, 0, 0]
         liftPoint = [self.grabPoint[0] + xOffset_lift, self.grabPoint[1] + sideOffset_lift, self.grabPoint[2] + heightOffset_lift, rotation, 0, 0]
         # TODO: remove these prints
-        print("Approach point %s" % approachPoint)
-        print("Grab point %s" % grabPoint)
-        print("Lift point %s" % liftPoint)
+        #print("Approach point %s" % approachPoint)
+        #print("Grab point %s" % grabPoint)
+        #print("Lift point %s" % liftPoint)
         if action == "Grab":
             self.motionproxy.setAngles(hand,1.0,0.4)
             listOfPointsBeforeGrasp = [safeUp, approachPoint, grabPoint]
@@ -108,10 +108,20 @@ class ManipulationClass():
             self.motionproxy.wbEnableEffectorControl(chainName, True)
             self.motionproxy.positionInterpolations([chainName], 2, listOfPointsBeforeGrasp,mask,listOfTimesBeforeGrasp,True)
             # TODO: remove this print
-            print(grabPoint)
-            print(self.motionproxy.getPosition(chainName, 2, True))
+            print(listOfPointsBeforeGrasp)
+            goal_point = np.asarray(grabPoint[0:3])
+            reached_point = np.asarray(self.motionproxy.getPosition(chainName, 2, True)[0:3])
+            diff = np.linalg.norm(reached_point-goal_point)
+            while diff > 0.008:
+                interval = diff * 10
+                self.motionproxy.positionInterpolations([chainName], 2, grabPoint, mask, [interval], True)
+                reached_point = np.asarray(self.motionproxy.getPosition(chainName, 2, True)[0:3])
+                diff = np.linalg.norm(reached_point-goal_point)
+                print('Goal point %s' % goal_point)
+                print('Reached point %s' % reached_point)
+                print('Diff %s' % diff)
             self.motionproxy.setAngles(handName, 0.0, 0.3)
-            time.sleep(1.0)
+            #time.sleep(1.0)
             test = self.memory.getData('ObjectGrabber')
             if test:
                 return None

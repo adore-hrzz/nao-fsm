@@ -519,9 +519,9 @@ class Fsm():
             with open(self.state_file, 'wb') as configfile:
                 self.state_config.write(configfile)
             #time.sleep(5)
-        print("%%%%%%%%%%%%%%%%%%%%--------------------%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
-        print(LinesAndPlanes.get3Dpoint(self.motionproxy, 2, bottomPoint[0], bottomPoint[1], [0, 0, 1, -self.h]))
-        print("%%%%%%%%%%%%%%%%%%%%--------------------%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+
+        new_point = LinesAndPlanes.get3Dpoint(self.motionproxy, 2, bottomPoint[0], bottomPoint[1], [0, 0, 1, -self.h])
+
         lineLeft = LinesAndPlanes.getLineEquation(self.motionproxy,2,wLeft[0],wLeft[1])
         tLeft = LinesAndPlanes.intersectWithPlane(lineLeft, 2, ( 0, 0, 1, -self.h))
 
@@ -563,7 +563,7 @@ class Fsm():
                 self.grabPoint[2] = self.h + 0.06
             print('Grab point corrected: ', self.grabPoint)
         else:
-            self.grabPoint = [tBottom[0]+offset_x, tBottom[1], tBottom[2]+offset_z]
+            self.grabPoint = [new_point[0], new_point[1], new_point[2]+0.03]
         #saying = ''
         # if the object is not too large to grab, hand to grab object with is determined and grabbing starts
         if d < maxGrabDiameter:
@@ -613,10 +613,6 @@ class Fsm():
         with open(self.state_file, 'wb') as configfile:
             self.state_config.write(configfile)
 
-        #self.grab_direction = 'L'
-        # TODO: wtf is this shit?
-        #self.grabPoint = [0.23, 0.07, 0.30]
-        #self.grab_number = 1
 
         manipulation = objectManipulation.ManipulationClass(self.motionproxy, self.Nao_object, self.grab_number,
                                                             self.grabPoint, self.memory, self.postureproxy,
