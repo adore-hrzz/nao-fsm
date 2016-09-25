@@ -2,14 +2,19 @@
 # -*- coding: utf-8 -*-
 
 from transitions import Machine
+#from transitions.extensions import GraphMachine as Machine
+
+from naoqi import ALProxy
+
+import argparse
+
+states = ['init','invite','grab','introduce','demo',
+          'release','encourage','recognize','recourage', 
+          'bravo','end']
 
 class Imitation(Machine):
 
     def __init__(self,initial='init',interactive=True):
-
-        states = ['init','invite','grab','introduce','demo',
-                  'release','encourage','recognize','recourage', 
-                  'bravo','end']
 
         # Matching transitions are searched for sequentially
         # Therefore, the wildcard transition '*' has to be defined last
@@ -30,6 +35,13 @@ class Imitation(Machine):
         Machine.__init__(self,states=states,transitions=transitions,initial=initial)
 
         self.interactive = interactive
+        
+        self.behaviors = {'invite': '', 'introduce': '', 'demo': '', 
+                          'encourage': '', 'recourage': '', 'bravo': ''}
+
+        self.ip = 'helga.local'
+        self.port = 9559
+        self.behavior_proxy = ALProxy('ALBehaviorManager',self.ip,self.port)
 
     def on_enter_invite(self):
         """
@@ -56,7 +68,7 @@ class Imitation(Machine):
         """
         Demonstrate the gesture.
         """
-        print('Demonstrating...')
+        self.behavior_proxy.runBehavior('Drinking (left)')
         self.success()
 
     def on_enter_release(self):
@@ -121,6 +133,12 @@ class Imitation(Machine):
 
 if __name__ == '__main__':
 
+    parser = argparse.ArgumentParser(description='Run the immitation protocol.')
+    parser.add_argument('--config', help='Configuration file name.')
+    args = parser.parse_args()
+
     im = Imitation()
+    #im.graph.draw('state_diagram.png',prog='dot')
+
     im.start()
 
