@@ -12,17 +12,17 @@ class Imitation(Machine):
                   'bravo','end']
 
         transitions = [ {'trigger': 'start', 'source': 'init', 'dest': 'invite'},
-                        {'trigger': 'success', 'source': 'invite', 'dest': 'grab'},
-                        {'trigger': 'success', 'source': 'grab', 'dest': 'introduce'},
-                        {'trigger': 'success', 'source': 'introduce', 'dest': 'demo'},
-                        {'trigger': 'success', 'source': 'demo', 'dest': 'release'},
-                        {'trigger': 'success', 'source': 'release', 'dest': 'encourage'},
-                        {'trigger': 'success', 'source': 'encourage', 'dest': 'recognize'},
-                        {'trigger': 'success', 'source': 'recognize', 'dest': 'bravo'},
-                        {'trigger': 'fail', 'source': 'recognize', 'dest': 'recourage'},
-                        {'trigger': 'success', 'source': 'recourage', 'dest': 'grab'},
-                        {'trigger': 'repeat', 'source': 'bravo', 'dest': 'init'},
-                        {'trigger': 'quit', 'source': '*', 'dest': 'end'},
+                        {'trigger': 'success', 'source': 'invite', 'dest': 'grab', 'unless': 'user_quit'},
+                        {'trigger': 'success', 'source': 'grab', 'dest': 'introduce', 'unless': 'user_quit'},
+                        {'trigger': 'success', 'source': 'introduce', 'dest': 'demo', 'unless': 'user_quit'},
+                        {'trigger': 'success', 'source': 'demo', 'dest': 'release', 'unless': 'user_quit'},
+                        {'trigger': 'success', 'source': 'release', 'dest': 'encourage', 'unless': 'user_quit'},
+                        {'trigger': 'success', 'source': 'encourage', 'dest': 'recognize', 'unless': 'user_quit'},
+                        {'trigger': 'success', 'source': 'recognize', 'dest': 'bravo', 'unless': 'user_quit'},
+                        {'trigger': 'fail', 'source': 'recognize', 'dest': 'recourage', 'unless': 'user_quit'},
+                        {'trigger': 'success', 'source': 'recourage', 'dest': 'grab', 'unless': 'user_quit'},
+                        {'trigger': 'success', 'source': 'bravo', 'dest': 'init',  'unless': 'user_quit'},
+                        {'trigger': 'success', 'source': '*', 'dest': 'end', 'conditions': 'user_quit'}
                       ]
 
         Machine.__init__(self,states=states,transitions=transitions,initial=initial)
@@ -34,64 +34,56 @@ class Imitation(Machine):
         Invite person to approach the robot.
         """
         print("Inviting...")
-        if not self.user_quit():
-            self.success()
+        self.success()
 
     def on_enter_grab(self):
         """
         Grab the object.
         """
         print('Grabbing...')
-        if not self.user_quit():
-            self.success()
+        self.success()
 
     def on_enter_introduce(self):
         """
         Introduce the task.
         """
         print('Introducing...')
-        if not self.user_quit():
-            self.success()
+        self.success()
 
     def on_enter_demo(self):
         """
         Demonstrate the gesture.
         """
         print('Demonstrating...')
-        if not self.user_quit():
-            self.success()
+        self.success()
 
     def on_enter_release(self):
         """
         Release the object.
         """
         print('Releasing...')
-        if not self.user_quit():
-            self.success()
+        self.success()
 
     def on_enter_encourage(self):
         """
         Encourage the person to repeat the gesture.
         """
         print('Encouraging...')
-        if not self.user_quit():
-            self.success()
+        self.success()
 
     def on_enter_recognize(self):
         """
         Run gesture recognition.
         """
         print('Recognizing...')
-        if not self.user_quit():
-            self.success()
+        self.success()
 
     def on_enter_recourage(self):
         """
         Re-encourage the person if gesture was not recognized.
         """
         print('Recouraging...')
-        if not self.user_quit():
-            self.success()
+        self.success()
 
     def on_enter_bravo(self):
         """
@@ -99,13 +91,7 @@ class Imitation(Machine):
         """
         print('Bravo!')
         
-        if not self.interactive or self.user_quit():
-            # Right now, there's no way to break out of
-            # non-interactive mode, so repeating is disabled
-            # in that mode
-            self.quit()
-        else:
-            self.repeat()
+        self.success()
 
     def on_enter_end(self):
         """
@@ -115,7 +101,8 @@ class Imitation(Machine):
 
     def user_quit(self):
         """
-        Wait for user input before continuing.
+        Checks user input. Returns False if the user only pressed <Enter>.
+        Returns True otherwise.
         """
         user_input = ''
         message = 'Completed state {0}.'.format(self.state)
@@ -125,7 +112,10 @@ class Imitation(Machine):
         else:
             print(message)
 
-        return user_input
+        if user_input:
+            return True
+        else:
+            return False
 
 if __name__ == '__main__':
 
