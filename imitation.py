@@ -11,6 +11,8 @@ class Imitation(Machine):
                   'release','encourage','recognize','recourage', 
                   'bravo','end']
 
+        # Matching transitions are searched for sequentially
+        # Therefore, the wildcard transition '*' has to be defined last
         transitions = [ {'trigger': 'start', 'source': 'init', 'dest': 'invite'},
                         {'trigger': 'success', 'source': 'invite', 'dest': 'grab', 'unless': 'user_quit'},
                         {'trigger': 'success', 'source': 'grab', 'dest': 'introduce', 'unless': 'user_quit'},
@@ -22,7 +24,7 @@ class Imitation(Machine):
                         {'trigger': 'fail', 'source': 'recognize', 'dest': 'recourage', 'unless': 'user_quit'},
                         {'trigger': 'success', 'source': 'recourage', 'dest': 'grab', 'unless': 'user_quit'},
                         {'trigger': 'success', 'source': 'bravo', 'dest': 'init',  'unless': 'user_quit'},
-                        {'trigger': 'success', 'source': '*', 'dest': 'end', 'conditions': 'user_quit'}
+                        {'trigger': 'success', 'source': '*', 'dest': 'end'}
                       ]
 
         Machine.__init__(self,states=states,transitions=transitions,initial=initial)
