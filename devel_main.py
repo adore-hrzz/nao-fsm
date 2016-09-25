@@ -500,6 +500,7 @@ class Fsm():
         d_hor = 0.0
         d_ver = 0.0
         stsel = 0
+
         self.camera.getImage(kBGRColorSpace) #change to string if problems occur
         #alimg = self.alvideoproxy.getImageRemote(self.video)
         #self.camera.image = None

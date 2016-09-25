@@ -520,6 +520,16 @@ class NaoImgGetter:
         array = naoImage[6]
         self.pilimage = Image.fromstring("RGB", (imageWidth,imageHeight), array) #frombytes
         self.image=np.array(self.pilimage)
+        al_image = self.camProxy.getImageRemote(self.videoClient)
+        image_width = al_image[0]
+        image_height = al_image[1]
+        channels = al_image[2]
+        img_data = al_image[6]
+        image = np.array(np.frombuffer(img_data, dtype=np.uint8))  #
+        image = image.reshape((image_height, image_width, channels))
+        #print(image)
+        #image = np.reshape(image, (image_width, image_height, channels))
+        cv2.imwrite("Test.png", image)
         #self.image.resize((320,240),Image.ANTIALIAS)
         t1=time.time()
         print ('Image acquisition time =', str(t1-t0))

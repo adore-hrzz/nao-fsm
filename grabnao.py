@@ -1,0 +1,384 @@
+import argparse
+import ConfigParser
+import cv2
+import NaoImageProcessing
+import numpy as np
+import math
+from naoqi import ALProxy
+from vision_definitions import kVGA, kBGRColorSpace
+
+
+class ImageProcessing:
+    def __init__(self, config_file):
+        self.parser = ConfigParser.ConfigParser()
+        self.parser.read(config_file)
+        self.processing_settings = dict(self.parser.items('Image processing'))
+
+    def calculate_grab_point(self, image, object_name):
+        object_settings = dict(self.parser.items(object_name))
+
+        img = cv2.medianBlur(image, 9)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        hue_img = cv2.split(img)[0]/180.0
+
+        if self.processing_settings['segmentation_type'] == '0':
+            hue = float(object_settings['hue'])
+            binary_image = NaoImageProcessing.histThresh(img, hue, 0)
+        else:
+            h_min = int(object_settings['hmin'])
+            h_max = int(object_settings['hmax'])
+            s_min = int(object_settings['smin'])
+            s_max = int(object_settings['smax'])
+            v_min = int(object_settings['vmin'])
+            v_max = int(object_settings['vmax'])
+            binary_image = cv2.inRange(img, (h_min, s_min, v_min), (h_max, s_max, v_max))
+            binary_image = cv2.dilate(binary_image*1.0, np.ones((10, 10)))
+            binary_image = cv2.erode(binary_image*1.0, np.ones((10, 10)))
+            binary_image = cv2.convertScaleAbs(binary_image*255)
+
+        # TODO: remove debug output
+        cv2.imwrite('object_segmented.png', binary_image)
+        if cv2.countNonZero(binary_image) < int(self.processing_settings['min_size']):
+            print('Object too small')
+            return -1, None
+
+        contours, hierarchy = cv2.findContours(binary_image, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+
+        hierarchy = hierarchy[0]
+        areas = []
+        avg_colors = []
+        object_color = float(object_settings['hue'])
+        for i in range(0, len(contours)):
+            if hierarchy[i][3] >= 0:
+                areas += [0]
+                avg_colors += [0.5]
+            else:
+                temp_draw = np.zeros(hue_img.shape)
+                cv2.drawContours(temp_draw, contours, i, 255, -1)
+                area = len(temp_draw[np.nonzero(temp_draw)])
+                avg_color = sum(hue_img[np.nonzero(temp_draw)])
+                avg_color /= area
+                areas += [area]
+                avg_colors += [min(abs(avg_color-object_color), abs(1-avg_color-object_color))]
+        best_color = min(avg_colors)
+
+        color_threshold = float(self.processing_settings['color_threshold'])
+        if best_color > color_threshold:
+            print('Best color over threshold')
+            return -1, None
+
+        max_blob_idx = -1
+        max_area = 0
+        for i in range(0, len(avg_colors)):
+            if abs(best_color-avg_colors[i]) < 0.1:
+                if areas[i] > max_area:
+                    max_blob_idx = i
+                    max_area = areas[i]
+        if max_blob_idx == -1:
+            print('Max blob id negative')
+            return -1, None
+
+        object_id = max_blob_idx
+
+        object_bb = NaoImageProcessing.getBB(contours[object_id])
+
+        if hierarchy[object_id][2] < 0 or object_name != 'Cup':
+            if object_name == 'Frog':
+                obj_moments = cv2.moments(contours[object_id])
+                grab_point_image = [obj_moments['m10']/obj_moments['m00'], obj_moments['m01']/obj_moments['m00']]
+            elif object_name == 'Cylinder':
+                grab_point_image = [(object_bb[0]+object_bb[2])/2.0, object_bb[3]]
+
+            else:
+                print('Failed to detect hole in the cup')
+                return -1, None
+
+            image_midpoint = float(self.processing_settings['cx'])
+
+            if grab_point_image[0] > image_midpoint:
+                direction = 1
+            else:
+                direction = -1
+
+        elif object_name == 'Cup':
+            hole = hierarchy[object_id][2]
+            hole_list = []
+            while hole >= 0:
+                hole_list += [hole]
+                hole = hierarchy[hole][0]
+
+            best_hole = -1
+            best_ratio = 0
+            side = 0
+
+            for i in hole_list:
+                hole_bb = NaoImageProcessing.getBB(contours[i])
+                [up_down, left_right] = NaoImageProcessing.cmpBB(object_bb, hole_bb)
+
+                if abs(left_right) > abs(up_down):
+                    if best_ratio < abs(left_right):
+                        best_hole = i
+                        best_ratio = abs(left_right)
+                        side = left_right
+
+            if best_hole == -1:
+                print('Determination of best hole failed')
+                return -1, None
+
+            else:
+                hole_bb = NaoImageProcessing.getBB(contours[best_hole])
+                direction = math.copysign(1, side)
+
+                grab_point_image = [(hole_bb[0]+hole_bb[2])/2, (hole_bb[1]+hole_bb[3])/2]
+                cv2.circle(image, (int(grab_point_image[0]), int(grab_point_image[1])), 5, (0, 0, 255), -1)
+                cv2.imwrite('GrabPoint.png', image)
+
+        else:
+            print('Unexpected failure in image processing')
+            return -1, None
+
+        return 1, [grab_point_image, direction]
+
+
+class NAOImageGetter:
+    def __init__(self, ip, port, camera=1, resolution=kVGA, color_space=kBGRColorSpace):
+        self.video_proxy = ALProxy('ALVideoDevice', ip, port)
+        self.video = self.video_proxy.subscribeCamera('NAOImgGet', camera, resolution, color_space, 30)
+
+    def get_image(self):
+        al_image = self.video_proxy.getImageRemote(self.video)
+        image_width = al_image[0]
+        image_height = al_image[1]
+        channels = al_image[2]
+        img_data = al_image[6]
+        image = np.array(np.frombuffer(img_data, dtype=np.uint8))
+        image = image.reshape((image_height, image_width, channels))
+        cv2.imwrite("Test_image.png", image)
+        self.video_proxy.releaseImage(self.video)
+        return image
+
+    def __del__(self):
+        self.video_proxy.unsubscribe(self.video)
+
+
+class NAO:
+    def __init__(self, ip, port):
+        self.camera = NAOImageGetter(ip, port)
+        self.motion = ALProxy('ALMotion', ip, port)
+
+
+class GrabNAO:
+    def __init__(self, config_file_general, robot=None):
+        self.parser = ConfigParser.ConfigParser()
+        self.parser.read(config_file_general)
+        self.general_settings = dict(self.parser.items('Settings'))
+        if not robot:
+            self.robot = NAO(self.general_settings['ip'], int(self.general_settings['port']))
+        else:
+            self.robot = robot
+        self.image_processor = ImageProcessing(self.general_settings['image_config_file'])
+        self.return_point = None
+
+    def calculate_3d_grab_point(self, object_name):
+        image = self.robot.camera.get_image()
+        ret_val, data = self.image_processor.calculate_grab_point(image, object_name)
+
+        if ret_val == -1:
+            return -1, None
+
+        camera_transform = self.robot.motion.getTransform("CameraBottom", 2, True)
+        t_cam_al = np.asarray(camera_transform)
+        t_cam_al = np.reshape(t_cam_al, (4, 4))
+
+        t_al_cv = np.zeros((4, 4), dtype=np.float64)
+        t_al_cv[0, 2] = 1    # this means Z'= X
+        t_al_cv[1, 0] = 1    # this means X'= Y
+        t_al_cv[2, 1] = 1    # this means Y'= Z
+        t_al_cv[3, 3] = 1    # homogeneous coordinates!
+
+        t_cam_cv = np.dot(t_cam_al, t_al_cv)
+
+        cam_point = np.asarray([t_cam_al[0, 3], t_cam_al[1, 3], t_cam_al[2, 3]])
+
+        c_x = float(self.image_processor.processing_settings['cx'])
+        c_y = float(self.image_processor.processing_settings['cy'])
+        f = float(self.image_processor.processing_settings['focus'])
+
+        grab_point_image = data[0]
+        direction = data[1]
+
+        pix_point = np.asarray([c_x-grab_point_image[0], c_y-grab_point_image[1], f, 1])
+        pix_point_transformed = np.dot(t_cam_cv, pix_point)
+        pix_point_transformed = pix_point_transformed[0:3]
+
+        pix_vec = pix_point_transformed - cam_point
+        pix_vec /= np.linalg.norm(pix_vec)
+
+        A = 0.0
+        B = 0.0
+        C = 1.0
+        D = -float(self.image_processor.processing_settings['height'])
+        D -= self.image_processor.parser.getfloat(object_name, 'height_offset')
+
+        t = (-1)*(A*t_cam_cv[0, 3] + B*t_cam_cv[1, 3] + C*t_cam_cv[2, 3] + D)/(A*pix_vec[0]+B*pix_vec[1]+C*pix_vec[2])
+        point = cam_point + t*pix_vec
+
+        self.return_point = point
+
+        return 1, [point, direction]
+
+    def grab_object(self, object_name, point, direction, orientation_control=True):
+        if orientation_control:
+            motion_mask = 15
+        else:
+            motion_mask = 7
+
+        safe_up = [0.1, -direction * 0.15, 0.41, 0, 0, 0]
+        behavior_pose = [0.05, -direction * 0.05, 0.41, 0, 0, 0]
+
+        # grabbing parameters
+        x_offset_approach = 0.0
+        y_offset_approach = 0.0
+        z_offset_approach = 0.0
+
+        x_offset_grab = 0.0
+        y_offset_grab = 0.0
+        z_offset_grab = 0.0
+
+        x_offset_lift = 0.0
+        y_offset_lift = 0.0
+        z_offset_lift = 0.0
+
+        distance_tolerance_approach = 0.03
+        distance_tolerance = 0.0
+
+        if direction == -1:
+            hand_name = 'LHand'
+            chain_name = 'LArm'
+        else:
+            hand_name = 'RHand'
+            chain_name = 'LArm'
+
+        if object_name == 'Cup':
+            print('Setting parameters for cup')
+            x_offset_approach = 0.0
+            y_offset_approach = 0.0
+            z_offset_approach = 0.0
+
+            x_offset_grab = 0.0
+            y_offset_grab = 0.0
+            z_offset_grab = 0.0
+
+            x_offset_lift = 0.0
+            y_offset_lift = 0.0
+            z_offset_lift = 0.0
+
+        elif object_name == 'Frog':
+            print('Setting parameters for frog')
+            x_offset_approach = 0.0
+            y_offset_approach = 0.0
+            z_offset_approach = 0.0
+
+            x_offset_grab = 0.0
+            y_offset_grab = 0.0
+            z_offset_grab = 0.0
+
+            x_offset_lift = 0.0
+            y_offset_lift = 0.0
+            z_offset_lift = 0.0
+
+        elif object_name == 'Cylinder':
+            print('Setting parameters for cylinder')
+            x_offset_approach = 0.0
+            y_offset_approach = 0.0
+            z_offset_approach = 0.0
+
+            x_offset_grab = 0.0
+            y_offset_grab = 0.0
+            z_offset_grab = 0.0
+
+            x_offset_lift = 0.0
+            y_offset_lift = 0.0
+            z_offset_lift = 0.0
+
+        else:
+            print('Unknown object')
+            return -1
+
+        approach_point_x = point[0] + x_offset_approach
+        approach_point_y = point[1] + y_offset_approach
+        approach_point_z = point[2] + z_offset_approach
+        approach_rotation = [0, 0, 0]
+
+        grab_point_x = point[0] + x_offset_grab
+        grab_point_y = point[1] + y_offset_grab
+        grab_point_z = point[2] + z_offset_grab
+        grab_rotation = [0, 0, 0]
+
+        lift_point_x = point[0] + x_offset_lift
+        lift_point_y = point[1] + y_offset_lift
+        lift_point_z = point[2] + z_offset_lift
+        lift_rotation = [0, 0, 0]
+
+        approach_point = [approach_point_x, approach_point_y, approach_point_z, approach_rotation]
+        grab_point = [grab_point_x, grab_point_y, grab_point_z, grab_rotation]
+        lift_point = [lift_point_x, lift_point_y, lift_point_z, lift_rotation]
+
+        self.robot.motion.setAngles(hand_name, 1.0, 0.3)
+
+        points_before_grasp = [safe_up, approach_point]
+        times_before_grasp = [2, 4]
+
+        self.robot.motion.wbEnableEffectorControl(chain_name, True)
+        self.robot.motion.positionInterpolations([chain_name], 2, points_before_grasp, motion_mask, times_before_grasp, True)
+
+        goal_point = np.asarray(approach_point[0:3])
+        reached_point = np.asarray(self.robot.motion.getPosition(chain_name, 2, True)[0:3])
+        diff = np.linalg.norm(reached_point-goal_point)
+        count = 0
+
+        while diff > distance_tolerance_approach:
+            time_interval = diff * 10
+            self.robot.motion.positionInterpolations([chain_name], 2, approach_point, motion_mask, [time_interval], True)
+            reached_point = np.asarray(self.robot.motion.getPosition(chain_name, 2, True)[0:3])
+            diff = np.linalg.norm(reached_point-goal_point)
+            count += 1
+            if count > 10:
+                break
+
+        goal_point = np.asarray(grab_point[0:3])
+        reached_point = np.asarray(self.robot.motion.getPosition(chain_name, 2, True)[0:3])
+        diff = np.linalg.norm(reached_point-goal_point)
+        count = 0
+
+        while diff > grab_point:
+            interval = diff * 10
+            self.robot.motion.positionInterpolations([chain_name], 2, grab_point, motion_mask, [interval], True)
+            reached_point = np.asarray(self.robot.motion.getPosition(chain_name, 2, True)[0:3])
+            diff = np.linalg.norm(reached_point-goal_point)
+            count += 1
+            if count > 10:
+                print('Failed to reach the object')
+                return -1
+
+        self.robot.motion.setAngles(hand_name, 0.0, 0.3)
+        self.robot.motion.positionInterpolations([chain_name], 2, lift_point, motion_mask, 1, True)
+        self.robot.motion.positionInterpolations(["Torso"], 2, behavior_pose, motion_mask, 1, True)
+        return 1
+
+    def put_object_back(self, object_name):
+        pass
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("config")
+    args = parser.parse_args()
+    config_file = args.config
+
+    grabber = GrabNAO(config_file)
+
+    print(grabber.calculate_3d_grab_point('Cup'))
+    print(grabber.calculate_3d_grab_point('Frog'))
+
+
