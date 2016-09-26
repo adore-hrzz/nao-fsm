@@ -348,13 +348,10 @@ class GrabNAO:
         return 1, grab_point
 
     def put_object_back(self, return_point, direction):
-        print('Putting object back')
         if direction == -1:
-            print('Right hand')
             hand_name = 'RHand'
             chain_name = 'RArm'
         else:
-            print('Left hand')
             hand_name = 'LHand'
             chain_name = 'LArm'
 
@@ -372,9 +369,7 @@ class GrabNAO:
 
         self.robot.motion.positionInterpolations([chain_name], 2, points_list, 15, times_list, True)
 
-        print('Opening hand')
         self.robot.motion.setAngles(hand_name, 1.0, 0.3)
-        print('Disable motion')
         self.robot.motion.wbEnableEffectorControl(chain_name, False)
 
 
