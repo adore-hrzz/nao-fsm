@@ -344,10 +344,32 @@ class GrabNAO:
         self.robot.motion.setAngles(hand_name, 0.0, 0.3)
         self.robot.motion.positionInterpolations([chain_name], 2, lift_point, motion_mask, 1, True)
         self.robot.motion.positionInterpolations(["Torso"], 2, behavior_pose, motion_mask, 1, True)
+        self.robot.motion.wbEnableEffectorControl(chain_name, False)
         return 1
 
-    def put_object_back(self, object_name):
-        pass
+    def put_object_back(self, return_point, direction):
+        if direction == -1:
+            hand_name = 'RHand'
+            chain_name = 'RArm'
+        else:
+            hand_name = 'LHand'
+            chain_name = 'LArm'
+        self.robot.motion.wbEnableEffectorControl(chain_name, True)
+        goal_point = np.asarray(return_point[0:3])
+        reached_point = np.asarray(self.robot.motion.getPosition(chain_name, 2, True)[0:3])
+        diff = np.linalg.norm(reached_point-goal_point)
+        count = 0
+
+        while diff > 0.2:
+            interval = diff * 10
+            self.robot.motion.positionInterpolations([chain_name], 2, return_point, 15, [interval], True)
+            reached_point = np.asarray(self.robot.motion.getPosition(chain_name, 2, True)[0:3])
+            diff = np.linalg.norm(reached_point-goal_point)
+            count += 1
+            if count > 10:
+                break
+        self.robot.motion.setAngles(hand_name, 1.0, 0.3)
+        self.robot.motion.wbEnableEffectorControl(chain_name, False)
 
 
 if __name__ == '__main__':
@@ -358,13 +380,13 @@ if __name__ == '__main__':
     object_name = 'Cylinder'
     grabber = GrabNAO(config_file)
     grabber.init_pose()
-    ret_val, [grab_point, direction] = grabber.calculate_3d_grab_point(object_name)
+    ret_val, [grab_point_3d, grab_direction] = grabber.calculate_3d_grab_point(object_name)
 
     if ret_val == 1:
-        ret_val_grabbing = grabber.grab_object(object_name, grab_point, direction)
+        ret_val_grabbing = grabber.grab_object(object_name, grab_point_3d, grab_direction)
 
         if ret_val_grabbing == 1:
-            if direction == -1:
+            if grab_direction == -1:
                 hand = 'right'
             else:
                 hand = 'left'
@@ -376,6 +398,8 @@ if __name__ == '__main__':
             behavior_to_run = behavior + ' (%s)' % hand
             print(behavior_to_run)
             grabber.robot.behavior.runBehavior(behavior_to_run)
+
+            grabber.put_object_back(grab_point_3d, grab_direction)
 
     grabber.init_pose()
 
