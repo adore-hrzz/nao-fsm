@@ -237,20 +237,24 @@ class GrabNAO:
         behavior_pose = [0.05, -direction * 0.05, 0.41, 0, 0, 0]
 
         # grabbing parameters
-        x_offset_approach = 0.0
-        y_offset_approach = 0.0
-        z_offset_approach = 0.0
+        grab_settings = dict(self.image_processor.parser.items(object_name))
 
-        x_offset_grab = 0.0
-        y_offset_grab = 0.0
-        z_offset_grab = 0.0
+        x_offset_approach = float(grab_settings['x_offset_approach'])
+        y_offset_approach = float(grab_settings['y_offset_approach'])
+        z_offset_approach = float(grab_settings['z_offset_approach'])
 
-        x_offset_lift = 0.0
-        y_offset_lift = 0.0
-        z_offset_lift = 0.0
+        x_offset_grab = float(grab_settings['x_offset_grab'])
+        y_offset_grab = float(grab_settings['y_offset_grab'])
+        z_offset_grab = float(grab_settings['z_offset_grab'])
 
-        distance_tolerance_approach = 0.03
-        distance_tolerance = 0.0
+        x_offset_lift = float(grab_settings['x_offset_lift'])
+        y_offset_lift = float(grab_settings['y_offset_lift'])
+        z_offset_lift = float(grab_settings['z_offset_lift'])
+
+        rotation = float(grab_settings['rotation'])
+
+        distance_tolerance_approach = float(grab_settings['tolerance_approach'])
+        distance_tolerance_grab = float(grab_settings['tolerance_grab'])
 
         if direction == -1:
             hand_name = 'LHand'
@@ -260,46 +264,13 @@ class GrabNAO:
             chain_name = 'LArm'
 
         if object_name == 'Cup':
-            print('Setting parameters for cup')
-            x_offset_approach = 0.0
-            y_offset_approach = 0.0
-            z_offset_approach = 0.0
-
-            x_offset_grab = 0.0
-            y_offset_grab = 0.0
-            z_offset_grab = 0.0
-
-            x_offset_lift = 0.0
-            y_offset_lift = 0.0
-            z_offset_lift = 0.0
+            print('Grabbing cup')
 
         elif object_name == 'Frog':
-            print('Setting parameters for frog')
-            x_offset_approach = 0.0
-            y_offset_approach = 0.0
-            z_offset_approach = 0.0
-
-            x_offset_grab = 0.0
-            y_offset_grab = 0.0
-            z_offset_grab = 0.0
-
-            x_offset_lift = 0.0
-            y_offset_lift = 0.0
-            z_offset_lift = 0.0
+            print('Grabbing frog')
 
         elif object_name == 'Cylinder':
-            print('Setting parameters for cylinder')
-            x_offset_approach = 0.0
-            y_offset_approach = 0.0
-            z_offset_approach = 0.0
-
-            x_offset_grab = 0.0
-            y_offset_grab = 0.0
-            z_offset_grab = 0.0
-
-            x_offset_lift = 0.0
-            y_offset_lift = 0.0
-            z_offset_lift = 0.0
+            print('Grabbing cylinder')
 
         else:
             print('Unknown object')
@@ -308,17 +279,17 @@ class GrabNAO:
         approach_point_x = point[0] + x_offset_approach
         approach_point_y = point[1] + y_offset_approach
         approach_point_z = point[2] + z_offset_approach
-        approach_rotation = [0, 0, 0]
+        approach_rotation = [-direction*rotation, 0, 0]
 
         grab_point_x = point[0] + x_offset_grab
         grab_point_y = point[1] + y_offset_grab
         grab_point_z = point[2] + z_offset_grab
-        grab_rotation = [0, 0, 0]
+        grab_rotation = [-direction*rotation, 0, 0]
 
         lift_point_x = point[0] + x_offset_lift
         lift_point_y = point[1] + y_offset_lift
         lift_point_z = point[2] + z_offset_lift
-        lift_rotation = [0, 0, 0]
+        lift_rotation = [-direction*rotation, 0, 0]
 
         approach_point = [approach_point_x, approach_point_y, approach_point_z, approach_rotation]
         grab_point = [grab_point_x, grab_point_y, grab_point_z, grab_rotation]
@@ -351,7 +322,7 @@ class GrabNAO:
         diff = np.linalg.norm(reached_point-goal_point)
         count = 0
 
-        while diff > grab_point:
+        while diff > distance_tolerance_grab:
             interval = diff * 10
             self.robot.motion.positionInterpolations([chain_name], 2, grab_point, motion_mask, [interval], True)
             reached_point = np.asarray(self.robot.motion.getPosition(chain_name, 2, True)[0:3])
