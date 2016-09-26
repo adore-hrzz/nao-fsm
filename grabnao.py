@@ -279,7 +279,7 @@ class GrabNAO:
 
         else:
             print('Unknown object')
-            return -1
+            return -1, None
 
         approach_point_x = point[0] + x_offset_approach
         approach_point_y = point[1] + y_offset_approach
@@ -339,36 +339,42 @@ class GrabNAO:
             count += 1
             if count > 10:
                 print('Failed to reach the object')
-                return -1
+                return -1, None
 
         self.robot.motion.setAngles(hand_name, 0.0, 0.3)
         self.robot.motion.positionInterpolations([chain_name], 2, lift_point, motion_mask, 1, True)
         self.robot.motion.positionInterpolations(["Torso"], 2, behavior_pose, motion_mask, 1, True)
         self.robot.motion.wbEnableEffectorControl(chain_name, False)
-        return 1
+        return 1, grab_point
 
     def put_object_back(self, return_point, direction):
+        print('Putting object back')
         if direction == -1:
+            print('Right hand')
             hand_name = 'RHand'
             chain_name = 'RArm'
         else:
+            print('Left hand')
             hand_name = 'LHand'
             chain_name = 'LArm'
-        self.robot.motion.wbEnableEffectorControl(chain_name, True)
-        goal_point = np.asarray(return_point[0:3])
-        reached_point = np.asarray(self.robot.motion.getPosition(chain_name, 2, True)[0:3])
-        diff = np.linalg.norm(reached_point-goal_point)
-        count = 0
 
-        while diff > 0.2:
-            interval = diff * 10
-            self.robot.motion.positionInterpolations([chain_name], 2, return_point, 15, [interval], True)
-            reached_point = np.asarray(self.robot.motion.getPosition(chain_name, 2, True)[0:3])
-            diff = np.linalg.norm(reached_point-goal_point)
-            count += 1
-            if count > 10:
-                break
+        return_point_1 = return_point
+        return_point_1[0] += 0.00
+        return_point_1[2] += 0.02
+        return_point_2 = return_point
+        return_point_2[0] += 0.0
+        return_point_2[1] += direction*0.02
+        return_point_2[2] += 0.05
+
+        points_list = [return_point_2, return_point_2, return_point_1, return_point_1, return_point, return_point]
+        times_list = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0]
+        self.robot.motion.wbEnableEffectorControl(chain_name, True)
+
+        self.robot.motion.positionInterpolations([chain_name], 2, points_list, 15, times_list, True)
+
+        print('Opening hand')
         self.robot.motion.setAngles(hand_name, 1.0, 0.3)
+        print('Disable motion')
         self.robot.motion.wbEnableEffectorControl(chain_name, False)
 
 
@@ -377,13 +383,13 @@ if __name__ == '__main__':
     parser.add_argument("config")
     args = parser.parse_args()
     config_file = args.config
-    object_name = 'Cylinder'
+    object_name = 'Frog'
     grabber = GrabNAO(config_file)
     grabber.init_pose()
     ret_val, [grab_point_3d, grab_direction] = grabber.calculate_3d_grab_point(object_name)
 
     if ret_val == 1:
-        ret_val_grabbing = grabber.grab_object(object_name, grab_point_3d, grab_direction)
+        ret_val_grabbing, grab_point = grabber.grab_object(object_name, grab_point_3d, grab_direction)
 
         if ret_val_grabbing == 1:
             if grab_direction == -1:
@@ -399,7 +405,9 @@ if __name__ == '__main__':
             print(behavior_to_run)
             grabber.robot.behavior.runBehavior(behavior_to_run)
 
-            grabber.put_object_back(grab_point_3d, grab_direction)
+            grabber.put_object_back(grab_point, grab_direction)
+
+            grabber.robot.behavior.runBehavior('Sada ti (%s)' % hand)
 
     grabber.init_pose()
 
