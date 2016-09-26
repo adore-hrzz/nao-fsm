@@ -9,9 +9,8 @@ from vision_definitions import kVGA, kBGRColorSpace
 
 
 class ImageProcessing:
-    def __init__(self, config_file):
-        self.parser = ConfigParser.ConfigParser()
-        self.parser.read(config_file)
+    def __init__(self, config_parser):
+        self.parser = config_parser
         self.processing_settings = dict(self.parser.items('Image processing'))
 
     def calculate_grab_point(self, image, object_name):
@@ -64,7 +63,7 @@ class ImageProcessing:
 
         color_threshold = float(self.processing_settings['color_threshold'])
         if best_color > color_threshold:
-            print('Best color over threshold')
+            print('Best color over threshold %s' % best_color)
             return -1, None
 
         max_blob_idx = -1
@@ -96,9 +95,9 @@ class ImageProcessing:
             image_midpoint = float(self.processing_settings['cx'])
 
             if grab_point_image[0] > image_midpoint:
-                direction = 1
-            else:
                 direction = -1
+            else:
+                direction = 1
 
         elif object_name == 'Cup':
             hole = hierarchy[object_id][2]
@@ -153,7 +152,6 @@ class NAOImageGetter:
         img_data = al_image[6]
         image = np.array(np.frombuffer(img_data, dtype=np.uint8))
         image = image.reshape((image_height, image_width, channels))
-        cv2.imwrite("Test_image.png", image)
         self.video_proxy.releaseImage(self.video)
         return image
 
@@ -165,19 +163,25 @@ class NAO:
     def __init__(self, ip, port):
         self.camera = NAOImageGetter(ip, port)
         self.motion = ALProxy('ALMotion', ip, port)
+        self.posture = ALProxy('ALRobotPosture', ip, port)
 
 
 class GrabNAO:
     def __init__(self, config_file_general, robot=None):
         self.parser = ConfigParser.ConfigParser()
         self.parser.read(config_file_general)
-        self.general_settings = dict(self.parser.items('Settings'))
+        self.general_settings = dict(self.parser.items('General'))
         if not robot:
             self.robot = NAO(self.general_settings['ip'], int(self.general_settings['port']))
         else:
             self.robot = robot
-        self.image_processor = ImageProcessing(self.general_settings['image_config_file'])
+        self.image_processor = ImageProcessing(self.parser)
         self.return_point = None
+
+    def init_pose(self):
+        self.robot.posture.goToPosture("StandInit", 0.8)
+        self.robot.motion.setAngles('HeadPitch', 0, 0.5)
+        self.robot.motion.setAngles('HeadYaw', 0, 0.5)
 
     def calculate_3d_grab_point(self, object_name):
         image = self.robot.camera.get_image()
@@ -233,22 +237,22 @@ class GrabNAO:
         else:
             motion_mask = 7
 
-        safe_up = [0.1, -direction * 0.15, 0.41, 0, 0, 0]
-        behavior_pose = [0.05, -direction * 0.05, 0.41, 0, 0, 0]
+        safe_up = [0.1, direction * 0.15, 0.41, 0, 0, 0]
+        behavior_pose = [0.05, direction * 0.05, 0.41, 0, 0, 0]
 
         # grabbing parameters
         grab_settings = dict(self.image_processor.parser.items(object_name))
 
         x_offset_approach = float(grab_settings['x_offset_approach'])
-        y_offset_approach = float(grab_settings['y_offset_approach'])
+        y_offset_approach = direction*float(grab_settings['y_offset_approach'])
         z_offset_approach = float(grab_settings['z_offset_approach'])
 
         x_offset_grab = float(grab_settings['x_offset_grab'])
-        y_offset_grab = float(grab_settings['y_offset_grab'])
+        y_offset_grab = direction*float(grab_settings['y_offset_grab'])
         z_offset_grab = float(grab_settings['z_offset_grab'])
 
         x_offset_lift = float(grab_settings['x_offset_lift'])
-        y_offset_lift = float(grab_settings['y_offset_lift'])
+        y_offset_lift = direction*float(grab_settings['y_offset_lift'])
         z_offset_lift = float(grab_settings['z_offset_lift'])
 
         rotation = float(grab_settings['rotation'])
@@ -257,10 +261,10 @@ class GrabNAO:
         distance_tolerance_grab = float(grab_settings['tolerance_grab'])
 
         if direction == -1:
-            hand_name = 'LHand'
-            chain_name = 'LArm'
-        else:
             hand_name = 'RHand'
+            chain_name = 'RArm'
+        else:
+            hand_name = 'LHand'
             chain_name = 'LArm'
 
         if object_name == 'Cup':
@@ -291,14 +295,18 @@ class GrabNAO:
         lift_point_z = point[2] + z_offset_lift
         lift_rotation = [-direction*rotation, 0, 0]
 
-        approach_point = [approach_point_x, approach_point_y, approach_point_z, approach_rotation]
-        grab_point = [grab_point_x, grab_point_y, grab_point_z, grab_rotation]
-        lift_point = [lift_point_x, lift_point_y, lift_point_z, lift_rotation]
+        approach_point = [approach_point_x, approach_point_y, approach_point_z,
+                          approach_rotation[0], approach_rotation[1], approach_rotation[2]]
+        grab_point = [grab_point_x, grab_point_y, grab_point_z, grab_rotation[0], grab_rotation[1], grab_rotation[2]]
+        lift_point = [lift_point_x, lift_point_y, lift_point_z, lift_rotation[0], lift_rotation[1], lift_rotation[2]]
 
         self.robot.motion.setAngles(hand_name, 1.0, 0.3)
 
         points_before_grasp = [safe_up, approach_point]
         times_before_grasp = [2, 4]
+
+        print('Safe up %s' % safe_up)
+        print('Approach point %s' % approach_point)
 
         self.robot.motion.wbEnableEffectorControl(chain_name, True)
         self.robot.motion.positionInterpolations([chain_name], 2, points_before_grasp, motion_mask, times_before_grasp, True)
@@ -348,8 +356,13 @@ if __name__ == '__main__':
     config_file = args.config
 
     grabber = GrabNAO(config_file)
+    grabber.init_pose()
+    ret_val, [grab_point, direction] = grabber.calculate_3d_grab_point('Cylinder')
 
-    print(grabber.calculate_3d_grab_point('Cup'))
-    print(grabber.calculate_3d_grab_point('Frog'))
+    if ret_val == 1:
+        grabber.grab_object('Cylinder', grab_point, direction)
+
+    grabber.init_pose()
+
 
 
