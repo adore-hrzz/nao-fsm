@@ -164,6 +164,7 @@ class NAO:
         self.camera = NAOImageGetter(ip, port)
         self.motion = ALProxy('ALMotion', ip, port)
         self.posture = ALProxy('ALRobotPosture', ip, port)
+        self.behavior = ALProxy('ALBehaviorManager', ip, port)
 
 
 class GrabNAO:
@@ -354,13 +355,27 @@ if __name__ == '__main__':
     parser.add_argument("config")
     args = parser.parse_args()
     config_file = args.config
-
+    object_name = 'Cylinder'
     grabber = GrabNAO(config_file)
     grabber.init_pose()
-    ret_val, [grab_point, direction] = grabber.calculate_3d_grab_point('Cylinder')
+    ret_val, [grab_point, direction] = grabber.calculate_3d_grab_point(object_name)
 
     if ret_val == 1:
-        grabber.grab_object('Cylinder', grab_point, direction)
+        ret_val_grabbing = grabber.grab_object(object_name, grab_point, direction)
+
+        if ret_val_grabbing == 1:
+            if direction == -1:
+                hand = 'right'
+            else:
+                hand = 'left'
+
+            if object_name == 'Cylinder' or object_name == 'Frog':
+                behavior = 'Frog'
+            else:
+                behavior = 'Drinking'
+            behavior_to_run = behavior + ' (%s)' % hand
+            print(behavior_to_run)
+            grabber.robot.behavior.runBehavior(behavior_to_run)
 
     grabber.init_pose()
 
