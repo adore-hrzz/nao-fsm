@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 
 from transitions import Machine
-from grabnao import GrabNAO
+from grabnao import GrabNAO, ObjectGestureModule
+import time
 #from transitions.extensions import GraphMachine as Machine
 
 from naoqi import ALProxy
@@ -13,6 +14,9 @@ from ConfigParser import ConfigParser
 states = ['init','invite','grab','introduce','demo',
           'release','encourage','recognize','recourage', 
           'bravo','end']
+
+ObjectGesture = []
+
 
 class Imitation(Machine):
 
@@ -66,6 +70,8 @@ class Imitation(Machine):
                       }
 
         self.grabber = GrabNAO(objects,host)
+        global ObjectGesture
+        ObjectGesture = ObjectGestureModule('ObjectGesture', self.grabber.robot.broker)
 
     def on_enter_invite(self):
         """
@@ -146,7 +152,18 @@ class Imitation(Machine):
         """
         Run gesture recognition.
         """
+        global ObjectGesture
+        ObjectGesture.load('/home/nao/ImageSets/%s/' % self.object_name, self.object_name, 'ObjectGesture')
+        ObjectGesture.start_tracker(0, True)
         print('Recognizing...')
+        try:
+            while True:
+                pass
+        except:
+            time_str = './logs/'+time.strftime("%Y%m%d-%H%M%S")+'.txt'
+            ObjectGesture.write_data(time_str)
+            ObjectGesture.stop_tracker()
+            ObjectGesture.unload()
         self.success()
 
     def on_enter_recourage(self):

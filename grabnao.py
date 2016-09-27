@@ -1,11 +1,13 @@
-import argparse
-import ConfigParser
-import cv2
-import NaoImageProcessing
-import numpy as np
-import math
-from naoqi import ALProxy
 from vision_definitions import kVGA, kBGRColorSpace
+from naoqi import ALProxy, ALModule, ALBroker
+import NaoImageProcessing
+import ConfigParser
+import numpy as np
+import argparse
+import pickle
+import time
+import math
+import cv2
 
 
 class ImageProcessing:
@@ -159,7 +161,49 @@ class NAOImageGetter:
         self.video_proxy.unsubscribe(self.video)
 
 
+class ObjectGestureModule(ALModule):
+    def __init__(self, name, broker):
+        ALModule.__init__(self, name)
+
+        self.object_gesture = ALProxy('NAOObjectGesture', broker)
+        self.memory = ALProxy('ALMemory', broker)
+        self.data = []
+        self.time_start = time.time()
+
+    def load(self, path, object_name, module_name):
+        self.object_gesture.loadDataset(path)
+        self.object_gesture.trackObject(object_name, -1)
+        self.memory.subscribeToMicroEvent(object_name, module_name, object_name, "on_object_detected")
+
+    def start_tracker(self, camera_id, focus=True):
+        self.object_gesture.startTracker(15, camera_id)
+        if focus:
+            self.object_gesture.focusObject(-1)
+        self.time_start = time.time()
+
+    def stop_tracker(self):
+        self.object_gesture.stopFocus()
+        self.object_gesture.stopTracker()
+
+    def on_object_detected(self, key, value, message):
+        if value:
+            if value[0]:
+                time_passed = time.time() - self.time_start
+                data = [time_passed, value[3]]
+                print(data)
+                self.data.append(data)
+
+    def write_data(self, filename):
+        with open(filename, 'w') as file_to_write:
+            pickle.dump(self.data, file_to_write)
+
+    def unload(self):
+        self.object_gesture.stopTracker()
+        self.object_gesture.removeObjectKind(0)
+
+
 class NAO:
+<<<<<<< HEAD
     def __init__(self, host, port=9559):
         print('Connecting to {0} on port {1}'.format(host, port))
         self.camera = NAOImageGetter(host, port)
@@ -167,6 +211,16 @@ class NAO:
         self.posture = ALProxy('ALRobotPosture', host, port)
         self.behavior = ALProxy('ALBehaviorManager', host, port)
         self.tts = ALProxy('ALTextToSpeech', host, port)
+=======
+    def __init__(self, ip, port):
+
+        self.broker = ALBroker("nao_broker", '0.0.0.0', 0, ip, port)
+        self.motion = ALProxy('ALMotion')
+        self.posture = ALProxy('ALRobotPosture')
+        self.behavior = ALProxy('ALBehaviorManager')
+        self.tts = ALProxy('ALTextToSpeech')
+        self.camera = NAOImageGetter(ip, port)
+>>>>>>> master
 
 
 class GrabNAO:

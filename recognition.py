@@ -10,6 +10,7 @@ import random
 from ghmm import *
 import ConfigParser, argparse
 import training
+import pickle
 
 global ObjectTracker
 
@@ -410,14 +411,75 @@ class GestureRecognitionClass():
             print ("Avion!")
         return 1
 
+
+class ObjectGestureModule(ALModule):
+    def __init__(self, name, broker):
+        ALModule.__init__(self, name)
+
+        self.object_gesture = ALProxy('NAOObjectGesture', broker)
+        self.memory = ALProxy('ALMemory', broker)
+        self.data = []
+        self.time_start = time.time()
+
+    def load(self, path, object_name, module_name):
+        self.object_gesture.loadDataset(path)
+        self.object_gesture.trackObject(object_name, -1)
+        self.memory.subscribeToMicroEvent(object_name, module_name, object_name, "on_object_detected")
+
+    def start_tracker(self, camera_id, focus=True):
+        self.object_gesture.startTracker(15, camera_id)
+        if focus:
+            self.object_gesture.focusObject(-1)
+        self.time_start = time.time()
+
+    def stop_tracker(self):
+        self.object_gesture.stopFocus()
+        self.object_gesture.stopTracker()
+
+    def on_object_detected(self, key, value, message):
+        if value:
+            if value[0]:
+                time_passed = time.time() - self.time_start
+                data = [time_passed, value[3]]
+                print(data)
+                self.data.append(data)
+
+    def write_data(self, filename):
+        with open(filename, 'w') as file_to_write:
+            pickle.dump(self.data, file_to_write)
+
+    def unload(self):
+        self.object_gesture.stopTracker()
+        self.object_gesture.removeObjectKind(0)
+
 if __name__ == '__main__':
-    # object tracking part
+    broker = ALBroker("og_broker", "0.0.0.0", 0, '192.168.1.101', 9559)
+
+    ObjectGesture = ObjectGestureModule('ObjectGesture', broker)
+    ObjectGesture.load('/home/nao/ImageSets/Frog/', 'Frog', 'ObjectGesture')
+    ObjectGesture.start_tracker(0, True)
+    print('Started')
     try:
-        track = GestureRecognitionClass()
-        track.trackingInit()
-        track.trackingLoop()
-        track.trackingFinal()
+        while True:
+            pass
+    except KeyboardInterrupt:
+        ObjectGesture.write_data('dummy.txt')
+        ObjectGesture.stop_tracker()
+        ObjectGesture.unload()
+        broker.shutdown()
+        with open('dummy.txt', 'r') as file_to_read:
+            data = pickle.load(file_to_read)
+            print(data)
+        #print(ObjectGesture.data)
+        print('Done')
+
+    # object tracking part
+    # try:
+        # track = GestureRecognitionClass()
+        # track.trackingInit()
+        # track.trackingLoop()
+        # track.trackingFinal()
         # gesture recognition part
-        track.recognitionFun()
-    finally:
-        track.shutDown()
+        # track.recognitionFun()
+    # finally:
+        # track.shutDown()
