@@ -165,6 +165,7 @@ class NAO:
         self.motion = ALProxy('ALMotion', ip, port)
         self.posture = ALProxy('ALRobotPosture', ip, port)
         self.behavior = ALProxy('ALBehaviorManager', ip, port)
+        self.tts = ALProxy('ALTextToSpeech', ip, port)
 
 
 class GrabNAO:

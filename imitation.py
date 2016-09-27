@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from transitions import Machine
+from grabnao import GrabNAO
 #from transitions.extensions import GraphMachine as Machine
 
 from naoqi import ALProxy
@@ -39,15 +40,22 @@ class Imitation(Machine):
         self.behaviors = {'invite': '', 'introduce': '', 'demo': '', 
                           'encourage': '', 'recourage': '', 'bravo': ''}
 
-        self.ip = 'helga.local'
-        self.port = 9559
-        self.behavior_proxy = ALProxy('ALBehaviorManager',self.ip,self.port)
+        self.grab_point = None
+        self.direction = None
+        self.object_name = 'Frog'
+
+        #self.ip = 'edith.local'
+        #self.port = 9559
+        #self.behavior_proxy = ALProxy('ALBehaviorManager',self.ip,self.port)
+
+        self.grabber = GrabNAO('grabbing_config.ini')
 
     def on_enter_invite(self):
         """
         Invite person to approach the robot.
         """
         print("Inviting...")
+        self.grabber.init_pose()
         self.success()
 
     def on_enter_grab(self):
@@ -55,6 +63,19 @@ class Imitation(Machine):
         Grab the object.
         """
         print('Grabbing...')
+        ret_val_calc = self.grabber.calculate_3d_grab_point(self.object_name)
+        if ret_val_calc[0] == -1:
+            print('Grab point calculation failed')
+        else:
+            grab_point, direction = ret_val_calc[1]
+            ret_val_grab = self.grabber.grab_object(self.object_name, grab_point, direction)
+
+            if ret_val_grab == -1:
+                print('Grabbing failed')
+            else:
+                self.grab_point = ret_val_grab[1]
+                self.direction = direction
+
         self.success()
 
     def on_enter_introduce(self):
@@ -68,7 +89,17 @@ class Imitation(Machine):
         """
         Demonstrate the gesture.
         """
-        self.behavior_proxy.runBehavior('Drinking (left)')
+        if self.direction == -1:
+            hand = 'right'
+        else:
+            hand = 'left'
+
+        if self.object_name == 'Cylinder' or self.object_name == 'Frog':
+            behavior = 'Frog'
+        else:
+            behavior = 'Drinking'
+        behavior_to_run = behavior + ' (%s)' % hand
+        self.grabber.robot.behavior.runBehavior(behavior_to_run)
         self.success()
 
     def on_enter_release(self):
@@ -76,6 +107,7 @@ class Imitation(Machine):
         Release the object.
         """
         print('Releasing...')
+        self.grabber.put_object_back(self.grab_point, self.direction)
         self.success()
 
     def on_enter_encourage(self):
@@ -83,6 +115,12 @@ class Imitation(Machine):
         Encourage the person to repeat the gesture.
         """
         print('Encouraging...')
+        if self.direction == -1:
+            hand = 'right'
+        else:
+            hand = 'left'
+
+        self.grabber.robot.behavior.runBehavior('Sada ti (%s)' % hand)
         self.success()
 
     def on_enter_recognize(self):
