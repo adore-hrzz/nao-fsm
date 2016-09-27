@@ -160,23 +160,23 @@ class NAOImageGetter:
 
 
 class NAO:
-    def __init__(self, ip, port):
-        self.camera = NAOImageGetter(ip, port)
-        self.motion = ALProxy('ALMotion', ip, port)
-        self.posture = ALProxy('ALRobotPosture', ip, port)
-        self.behavior = ALProxy('ALBehaviorManager', ip, port)
-        self.tts = ALProxy('ALTextToSpeech', ip, port)
+    def __init__(self, host, port=9559):
+        print('Connecting to {0} on port {1}'.format(host, port))
+        self.camera = NAOImageGetter(host, port)
+        self.motion = ALProxy('ALMotion', host, port)
+        self.posture = ALProxy('ALRobotPosture', host, port)
+        self.behavior = ALProxy('ALBehaviorManager', host, port)
+        self.tts = ALProxy('ALTextToSpeech', host, port)
 
 
 class GrabNAO:
-    def __init__(self, config_file_general, robot=None):
+    def __init__(self, config_file_general, host, port=9559, robot=None):
         self.parser = ConfigParser.ConfigParser()
         self.parser.read(config_file_general)
-        self.general_settings = dict(self.parser.items('General'))
-        if not robot:
-            self.robot = NAO(self.general_settings['ip'], int(self.general_settings['port']))
-        else:
+        if robot:
             self.robot = robot
+        else:
+            self.robot = NAO(host,port)
         self.image_processor = ImageProcessing(self.parser)
         self.return_point = None
 

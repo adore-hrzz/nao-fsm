@@ -8,6 +8,7 @@ from grabnao import GrabNAO
 from naoqi import ALProxy
 
 import argparse
+from ConfigParser import ConfigParser
 
 states = ['init','invite','grab','introduce','demo',
           'release','encourage','recognize','recourage', 
@@ -15,13 +16,14 @@ states = ['init','invite','grab','introduce','demo',
 
 class Imitation(Machine):
 
-    def __init__(self,initial='init',interactive=True):
+    def __init__(self, gesture, host, objects, initial='init', hand='left', interactive=True):
 
         # Matching transitions are searched for sequentially
         # Therefore, the wildcard transition '*' has to be defined last
-        transitions = [ {'trigger': 'start', 'source': 'init', 'dest': 'invite'},
+        transitions = [ {'trigger': 'start', 'source': 'init', 'dest': 'invite', 'unless': 'user_quit'},
                         {'trigger': 'success', 'source': 'invite', 'dest': 'grab', 'unless': 'user_quit'},
                         {'trigger': 'success', 'source': 'grab', 'dest': 'introduce', 'unless': 'user_quit'},
+                        {'trigger': 'fail', 'source': 'greb', 'dest': 'grab', 'unless': 'user_quit'},
                         {'trigger': 'success', 'source': 'introduce', 'dest': 'demo', 'unless': 'user_quit'},
                         {'trigger': 'success', 'source': 'demo', 'dest': 'release', 'unless': 'user_quit'},
                         {'trigger': 'success', 'source': 'release', 'dest': 'encourage', 'unless': 'user_quit'},
@@ -30,25 +32,40 @@ class Imitation(Machine):
                         {'trigger': 'fail', 'source': 'recognize', 'dest': 'recourage', 'unless': 'user_quit'},
                         {'trigger': 'success', 'source': 'recourage', 'dest': 'grab', 'unless': 'user_quit'},
                         {'trigger': 'success', 'source': 'bravo', 'dest': 'init',  'unless': 'user_quit'},
-                        {'trigger': 'success', 'source': '*', 'dest': 'end'}
+                        {'trigger': 'success', 'source': '*', 'dest': 'end'},
+                        {'trigger': 'fail', 'source': '*', 'dest': 'end'}
                       ]
 
         Machine.__init__(self,states=states,transitions=transitions,initial=initial)
 
         self.interactive = interactive
         
-        self.behaviors = {'invite': '', 'introduce': '', 'demo': '', 
-                          'encourage': '', 'recourage': '', 'bravo': ''}
+        parser = ConfigParser()
+        parser.readfp(open(gesture))
 
         self.grab_point = None
         self.direction = None
-        self.object_name = 'Frog'
+        self.hand = 'left'
+        self.object_name = parser.get('Gesture','object')
+        self.gesture = parser.get('Gesture','name')
+        
+        # TODO: yaml config might be more convenient
+        # Behavior names have to match state names!
+        self.behaviors = {'left': {'invite' : parser.get('Lefthanded','invite'),
+                                   'introduce' : parser.get('Lefthanded','introduce'),
+                                   'demo' : parser.get('Lefthanded','demo'),
+                                   'encourage' : parser.get('Lefthanded','encourage'),
+                                   'bravo' : parser.get('Lefthanded','bravo')
+                               },
+                          'right': {'invite' : parser.get('Righthanded','invite'),
+                                   'introduce' : parser.get('Righthanded','introduce'),
+                                   'demo' : parser.get('Righthanded','demo'),
+                                   'encourage' : parser.get('Righthanded','encourage'),
+                                   'bravo' : parser.get('Righthanded','bravo')
+                               }
+                      }
 
-        #self.ip = 'edith.local'
-        #self.port = 9559
-        #self.behavior_proxy = ALProxy('ALBehaviorManager',self.ip,self.port)
-
-        self.grabber = GrabNAO('grabbing_config.ini')
+        self.grabber = GrabNAO(objects,host)
 
     def on_enter_invite(self):
         """
@@ -56,6 +73,9 @@ class Imitation(Machine):
         """
         print("Inviting...")
         self.grabber.init_pose()
+        bhv = self.behaviors[self.hand][self.state]
+        if bhv:
+            self.grabber.robot.behavior.runBehavior(bhv)        
         self.success()
 
     def on_enter_grab(self):
@@ -66,12 +86,14 @@ class Imitation(Machine):
         ret_val_calc = self.grabber.calculate_3d_grab_point(self.object_name)
         if ret_val_calc[0] == -1:
             print('Grab point calculation failed')
+            self.fail()
         else:
             grab_point, direction = ret_val_calc[1]
             ret_val_grab = self.grabber.grab_object(self.object_name, grab_point, direction)
 
             if ret_val_grab == -1:
                 print('Grabbing failed')
+                self.fail()
             else:
                 self.grab_point = ret_val_grab[1]
                 self.direction = direction
@@ -83,6 +105,9 @@ class Imitation(Machine):
         Introduce the task.
         """
         print('Introducing...')
+        bhv = self.behaviors[self.hand][self.state]
+        if bhv:
+            self.grabber.robot.behavior.runBehavior(bhv)
         self.success()
 
     def on_enter_demo(self):
@@ -90,16 +115,13 @@ class Imitation(Machine):
         Demonstrate the gesture.
         """
         if self.direction == -1:
-            hand = 'right'
+            self.hand = 'right'
         else:
-            hand = 'left'
+            self.hand = 'left'
 
-        if self.object_name == 'Cylinder' or self.object_name == 'Frog':
-            behavior = 'Frog'
-        else:
-            behavior = 'Drinking'
-        behavior_to_run = behavior + ' (%s)' % hand
-        self.grabber.robot.behavior.runBehavior(behavior_to_run)
+        bhv = self.behaviors[self.hand][self.state]
+        if bhv:
+            self.grabber.robot.behavior.runBehavior(bhv)
         self.success()
 
     def on_enter_release(self):
@@ -115,12 +137,9 @@ class Imitation(Machine):
         Encourage the person to repeat the gesture.
         """
         print('Encouraging...')
-        if self.direction == -1:
-            hand = 'right'
-        else:
-            hand = 'left'
-
-        self.grabber.robot.behavior.runBehavior('Sada ti (%s)' % hand)
+        bhv = self.behaviors[self.hand][self.state]
+        if bhv:
+            self.grabber.robot.behavior.runBehavior(bhv)
         self.success()
 
     def on_enter_recognize(self):
@@ -135,6 +154,9 @@ class Imitation(Machine):
         Re-encourage the person if gesture was not recognized.
         """
         print('Recouraging...')
+        bhv = self.behaviors[self.hand][self.state]
+        if bhv:
+            self.grabber.robot.behavior.runBehavior(bhv)
         self.success()
 
     def on_enter_bravo(self):
@@ -142,7 +164,9 @@ class Imitation(Machine):
         Compliment the person if gesture was recognized.
         """
         print('Bravo!')
-        
+        bhv = self.behaviors[self.hand][self.state]
+        if bhv:
+            self.grabber.robot.behavior.runBehavior(bhv)
         self.success()
 
     def on_enter_end(self):
@@ -172,11 +196,17 @@ class Imitation(Machine):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Run the immitation protocol.')
-    parser.add_argument('--config', help='Configuration file name.')
+    parser.add_argument('--gesture', required=True, help='File containing the gesture descriptor.')
+    parser.add_argument('hostname', help='The hostname or ip address of the robot we are working with.')
+    parser.add_argument('--initial-state', help='Start from this state (states).', default='init')
+    parser.add_argument('--hand', help='The default hand. This is important if we start from a state other than init.', default='left')
+    parser.add_argument('--objects', default='objects.cfg', help='File containing object descriptors.')
     args = parser.parse_args()
 
-    im = Imitation()
+    im = Imitation(args.gesture, args.hostname, args.objects, args.initial_state, args.hand)
     #im.graph.draw('state_diagram.png',prog='dot')
 
-    im.start()
-
+    if args.initial_state == 'init':
+        im.start()
+    else:
+        im.success()
