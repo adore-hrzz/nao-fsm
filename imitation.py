@@ -157,14 +157,11 @@ class Imitation(Machine):
         ObjectGesture.load('/home/nao/ImageSets/%s/' % self.object_name, self.object_name, 'ObjectGesture')
         ObjectGesture.start_tracker(0, True)
         print('Recognizing...')
-        try:
-            while True:
-                pass
-        except:
-            time_str = './logs/'+time.strftime("%Y%m%d-%H%M%S")+'.txt'
-            ObjectGesture.write_data(time_str)
-            ObjectGesture.stop_tracker()
-            ObjectGesture.unload()
+        user_input = raw_input("Tracking the child's gesture. Hit <Enter> to stop.")
+        time_str = './logs/'+time.strftime("%Y%m%d-%H%M%S")+'.txt'
+        ObjectGesture.write_data(time_str)
+        ObjectGesture.stop_tracker()
+        ObjectGesture.unload()
         self.success()
 
     def on_enter_recourage(self):
