@@ -27,7 +27,7 @@ class Imitation(Machine):
         transitions = [ {'trigger': 'start', 'source': 'init', 'dest': 'invite', 'unless': 'user_quit'},
                         {'trigger': 'success', 'source': 'invite', 'dest': 'grab', 'unless': 'user_quit'},
                         {'trigger': 'success', 'source': 'grab', 'dest': 'introduce', 'unless': 'user_quit'},
-                        {'trigger': 'fail', 'source': 'greb', 'dest': 'grab', 'unless': 'user_quit'},
+                        {'trigger': 'fail', 'source': 'grab', 'dest': 'grab', 'unless': 'user_quit'},
                         {'trigger': 'success', 'source': 'introduce', 'dest': 'demo', 'unless': 'user_quit'},
                         {'trigger': 'success', 'source': 'demo', 'dest': 'release', 'unless': 'user_quit'},
                         {'trigger': 'success', 'source': 'release', 'dest': 'encourage', 'unless': 'user_quit'},

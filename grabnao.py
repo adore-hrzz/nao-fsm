@@ -203,25 +203,17 @@ class ObjectGestureModule(ALModule):
 
 
 class NAO:
-<<<<<<< HEAD
-    def __init__(self, host, port=9559):
-        print('Connecting to {0} on port {1}'.format(host, port))
-        self.camera = NAOImageGetter(host, port)
-        self.motion = ALProxy('ALMotion', host, port)
-        self.posture = ALProxy('ALRobotPosture', host, port)
-        self.behavior = ALProxy('ALBehaviorManager', host, port)
-        self.tts = ALProxy('ALTextToSpeech', host, port)
-=======
-    def __init__(self, ip, port):
 
-        self.broker = ALBroker("nao_broker", '0.0.0.0', 0, ip, port)
+    def __init__(self, host, port=9559):
+
+        print('Connecting to {0} on port {1}'.format(host, port))
+
+        self.broker = ALBroker("nao_broker", '0.0.0.0', 0, host, port)
         self.motion = ALProxy('ALMotion')
         self.posture = ALProxy('ALRobotPosture')
         self.behavior = ALProxy('ALBehaviorManager')
         self.tts = ALProxy('ALTextToSpeech')
-        self.camera = NAOImageGetter(ip, port)
->>>>>>> master
-
+        self.camera = NAOImageGetter(host, port)
 
 class GrabNAO:
     def __init__(self, config_file_general, host, port=9559, robot=None):
