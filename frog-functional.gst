@@ -10,7 +10,7 @@ object=Frog
 [Lefthanded]
 invite    = adorebasicmotions-23e157/Dodji (right)
 introduce = 
-demo      = imitationgestures-359a39/Drinking (left)
+demo      = imitationgestures-359a39/Frog (left)
 encourage = imitationgestures-359a39/Sada ti (left)
 recourage = imitationgestures-359a39
 bravo     = adorebasicmotions-23e157/Bravo
@@ -18,7 +18,7 @@ bravo     = adorebasicmotions-23e157/Bravo
 [Righthanded]
 invite    = adorebasicmotions-23e157/Dodji (right)
 introduce = 
-demo      = imitationgestures-359a39/Drinking (right)
+demo      = imitationgestures-359a39/Frog (right)
 encourage = imitationgestures-359a39/Sada ti (right)
 recourage = imitationgestures-359a39
 bravo     = adorebasicmotions-23e157/Bravo

@@ -136,6 +136,7 @@ class Imitation(Machine):
         """
         print('Releasing...')
         self.grabber.put_object_back(self.grab_point, self.direction)
+        #self.grabber.init_pose()
         self.success()
 
     def on_enter_encourage(self):
