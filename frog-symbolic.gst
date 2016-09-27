@@ -1,7 +1,7 @@
 # Frog functional imitation gesture description
 [Gesture]
 name=Frog
-object=Frog
+object=Cylinder
 
 # Behavior names (lhs) have to match state-machine sate names!
 # Behaviors can be left empty, in which case
