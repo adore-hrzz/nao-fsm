@@ -180,7 +180,7 @@ class GrabNAO:
         self.return_point = None
 
     def init_pose(self):
-        self.robot.posture.goToPosture("StandInit", 0.8)
+        self.robot.posture.goToPosture("StandInit", 0.5)
         self.robot.motion.setAngles('HeadPitch', 0, 0.5)
         self.robot.motion.setAngles('HeadYaw', 0, 0.5)
 
@@ -333,7 +333,7 @@ class GrabNAO:
 
         while diff > distance_tolerance_grab:
             interval = diff * 10
-            self.robot.motion.positionInterpolations([chain_name], 2, grab_point, motion_mask, [interval], True)
+            self.robot.motion.positionInterpolations([chain_name], 2, grab_point, motion_mask, [interval])
             reached_point = np.asarray(self.robot.motion.getPosition(chain_name, 2, True)[0:3])
             diff = np.linalg.norm(reached_point-goal_point)
             count += 1
@@ -342,34 +342,44 @@ class GrabNAO:
                 return -1, None
 
         self.robot.motion.setAngles(hand_name, 0.0, 0.3)
-        self.robot.motion.positionInterpolations([chain_name], 2, lift_point, motion_mask, 1, True)
-        self.robot.motion.positionInterpolations(["Torso"], 2, behavior_pose, motion_mask, 1, True)
+        self.robot.motion.positionInterpolations([chain_name], 2, lift_point, motion_mask, 1)
+        self.robot.motion.positionInterpolations(["Torso"], 2, behavior_pose, motion_mask, 1)
         self.robot.motion.wbEnableEffectorControl(chain_name, False)
         return 1, grab_point
 
     def put_object_back(self, return_point, direction):
+        print('Return point %s' % return_point)
         if direction == -1:
             hand_name = 'RHand'
             chain_name = 'RArm'
         else:
             hand_name = 'LHand'
             chain_name = 'LArm'
+        return_point[0] += 0.02
+        return_point[2] += 0.03
 
-        return_point_1 = return_point
-        return_point_1[0] += 0.00
+        return_point_1 = return_point[:]
+        return_point_1[0] += 0.0
         return_point_1[2] += 0.02
-        return_point_2 = return_point
-        return_point_2[0] += 0.0
+        return_point_2 = return_point[:]
+        return_point_2[0] -= 0.02
         return_point_2[1] += direction*0.02
         return_point_2[2] += 0.05
+        self.robot.motion.wbEnableEffectorControl(chain_name, True)
 
         points_list = [return_point_2, return_point_2, return_point_1, return_point_1, return_point, return_point]
         times_list = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0]
+
         self.robot.motion.wbEnableEffectorControl(chain_name, True)
-
-        self.robot.motion.positionInterpolations([chain_name], 2, points_list, 15, times_list, True)
-
+        self.robot.motion.positionInterpolations([chain_name], 2, points_list, 15, times_list)
+        self.robot.motion.wbEnableEffectorControl(chain_name, False)
         self.robot.motion.setAngles(hand_name, 1.0, 0.3)
+        return_point_1[2] += 0.05
+        return_point_2[2] += 0.05
+        points_list_2 = [return_point_1, return_point_1, return_point_2, return_point_2]
+        times_list_2 = [1.0, 1.5, 2.5, 3.0]
+        self.robot.motion.wbEnableEffectorControl(chain_name, True)
+        self.robot.motion.positionInterpolations([chain_name], 2, points_list_2, 15, times_list_2)
         self.robot.motion.wbEnableEffectorControl(chain_name, False)
 
 
@@ -378,7 +388,9 @@ if __name__ == '__main__':
     parser.add_argument("config")
     args = parser.parse_args()
     config_file = args.config
+    # object_name = 'Cylinder'
     object_name = 'Frog'
+    # object_name = 'Cup'
     grabber = GrabNAO(config_file)
     grabber.init_pose()
     ret_val, [grab_point_3d, grab_direction] = grabber.calculate_3d_grab_point(object_name)
@@ -399,7 +411,7 @@ if __name__ == '__main__':
             behavior_to_run = behavior + ' (%s)' % hand
             print(behavior_to_run)
             grabber.robot.behavior.runBehavior(behavior_to_run)
-
+            print('Grab point %s' % grab_point)
             grabber.put_object_back(grab_point, grab_direction)
 
             grabber.robot.behavior.runBehavior('Sada ti (%s)' % hand)
