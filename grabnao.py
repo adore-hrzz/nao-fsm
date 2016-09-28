@@ -38,6 +38,8 @@ class ImageProcessing:
             binary_image = cv2.convertScaleAbs(binary_image*255)
 
         # TODO: remove debug output
+        cv2.imshow('Segmented object', binary_image)
+        cv2.waitKey(1)
         cv2.imwrite('object_segmented.png', binary_image)
         if cv2.countNonZero(binary_image) < int(self.processing_settings['min_size']):
             print('Object too small')
@@ -132,12 +134,14 @@ class ImageProcessing:
 
                 grab_point_image = [(hole_bb[0]+hole_bb[2])/2, (hole_bb[1]+hole_bb[3])/2]
                 cv2.circle(image, (int(grab_point_image[0]), int(grab_point_image[1])), 5, (0, 0, 255), -1)
+                cv2.imshow('Grab point', image)
+                cv2.waitKey(1)
                 cv2.imwrite('GrabPoint.png', image)
 
         else:
             print('Unexpected failure in image processing')
             return -1, None
-
+        cv2.destroyAllWindows()
         return 1, [grab_point_image, direction]
 
 
@@ -156,6 +160,9 @@ class NAOImageGetter:
         image = image.reshape((image_height, image_width, channels))
         self.video_proxy.releaseImage(self.video)
         return image
+
+    def set_camera(self, index):
+        self.video_proxy.setActiveCamera(index)
 
     def __del__(self):
         self.video_proxy.unsubscribe(self.video)
@@ -214,6 +221,7 @@ class NAO:
         self.behavior = ALProxy('ALBehaviorManager')
         self.tts = ALProxy('ALTextToSpeech')
         self.camera = NAOImageGetter(host, port)
+
 
 class GrabNAO:
     def __init__(self, config_file_general, host, port=9559, robot=None):

@@ -1,9 +1,12 @@
+import time
 from naoqi import ALProxy
 import ConfigParser, argparse
 import cv2 as opencv
 from vision_definitions import kBGRColorSpace, kVGA
 import numpy as np
+from grabnao import NAOImageGetter
 from NaoImageProcessing import histThresh
+import os
 
 
 def nothing(dummy):
@@ -33,7 +36,7 @@ def trackbars2():
     opencv.createTrackbar('ObjColor', 'Trackbars', 0, 256, nothing)
 
 
-def segmentation_hsv(alvideoproxy, video, conf_parser, object_name, args):
+def segmentation_hsv(img_getter, conf_parser, object_name, args):
     trackbars()
     hue_min = 0
     hue_max = 255
@@ -48,7 +51,7 @@ def segmentation_hsv(alvideoproxy, video, conf_parser, object_name, args):
         sat_max = opencv.getTrackbarPos('S_Max', 'Trackbars')
         val_min = opencv.getTrackbarPos('V_Min', 'Trackbars')
         val_max = opencv.getTrackbarPos('V_Max', 'Trackbars')
-        image = nao_image_getter(alvideoproxy, video)
+        image = img_getter.get_image()
         img_hsv = opencv.cvtColor(image, opencv.COLOR_BGR2HSV)
         segmented = opencv.inRange(img_hsv, (hue_min, sat_min, val_min), (hue_max, sat_max, val_max))
         segmented = opencv.dilate(segmented*1.0, np.ones((10, 10)))
@@ -57,7 +60,6 @@ def segmentation_hsv(alvideoproxy, video, conf_parser, object_name, args):
         opencv.imshow("Original", image)
         if opencv.waitKey(10) == 27:
             break
-    alvideoproxy.unsubscribe(video)
     opencv.destroyAllWindows()
 
     if object_name not in conf_parser.sections():
@@ -72,24 +74,26 @@ def segmentation_hsv(alvideoproxy, video, conf_parser, object_name, args):
     with open(args.config, 'wb') as configfile:
         conf_parser.write(configfile)
 
+    return image, segmented
 
-def segmentation_hue(alvideoproxy, video, conf_parser, object_name, args):
+
+def segmentation_hue(img_getter, conf_parser, object_name, args):
     trackbars2()
     while True:
         obj_color = opencv.getTrackbarPos('ObjColor', 'Trackbars')
-        image = nao_image_getter(alvideoproxy, video)
+        image = img_getter.get_image()
         segmented = histThresh(image, obj_color/256.0, 0)
         opencv.imshow("Segmented", segmented)
         opencv.imshow("Original", image)
         if opencv.waitKey(10) == 27:
             break
-    alvideoproxy.unsubscribe(video)
     opencv.destroyAllWindows()
     if object_name not in conf_parser.sections():
         conf_parser.add_section(object_name)
     conf_parser.set(object_name, 'hue', obj_color/256.0)
     with open(args.config, 'wb') as configfile:
         conf_parser.write(configfile)
+    return image, segmented
 
 
 def main():
@@ -101,26 +105,50 @@ def main():
 
     ip = conf_parser.get('Settings', 'IP')
     port = conf_parser.getint('Settings', 'PORT')
-    camera = conf_parser.getint('Settings', 'camera')
     object_name = conf_parser.get('Settings', 'object')
 
     opencv.namedWindow("Segmented")
-    alvideoproxy = ALProxy("ALVideoDevice", ip, port)
-    alvideoproxy.setParam(18, camera)
-    video = None
-    try:
-        video = alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
-    except RuntimeError as e:
-        if e.args[0].split()[0] == 'ALVideoDevice::Subscribe':
-            alvideoproxy.unsubscribeAllInstances("video")
-            video = alvideoproxy.subscribe("video", kVGA, kBGRColorSpace, 30)
+    img_getter = NAOImageGetter(ip, port, camera=1)
+    motion_proxy = ALProxy('ALMotion', ip, port)
+    posture_proxy = ALProxy('ALRobotPosture', ip, port)
+    posture_proxy.goToPosture("StandInit", 0.5)
 
     segmentation_type = conf_parser.getint('Settings', 'segmentation_type')
-    if segmentation_type == 0:
-        segmentation_hue(alvideoproxy, video, conf_parser, object_name, args)
-    else:
-        segmentation_hsv(alvideoproxy, video, conf_parser, object_name, args)
 
+    if segmentation_type == 0:
+        image, binary_image = segmentation_hue(img_getter, conf_parser, object_name, args)
+    else:
+        image, binary_image = segmentation_hsv(img_getter, conf_parser, object_name, args)
+
+    if not os.path.exists(object_name):
+        os.makedirs(object_name)
+        os.makedirs(object_name+'/Dataset')
+        os.makedirs(object_name+'/GroundTruth')
+    opencv.imwrite(object_name + '/Dataset/object.jpg', image)
+    opencv.imwrite(object_name + '/GroundTruth/object.png', binary_image)
+
+    img_getter = NAOImageGetter(ip, port, camera=0)
+
+    motion_proxy.setAngles('HeadYaw', -1, 0.5)
+    time.sleep(0.5)
+    image = img_getter.get_image()
+    opencv.imwrite(object_name + '/Dataset/background0.jpg', image)
+    opencv.imwrite(object_name + '/GroundTruth/background0.png', binary_image*0.0)
+
+    motion_proxy.setAngles('HeadYaw',0,0.5)
+    time.sleep(0.5)
+    image = img_getter.get_image()
+    opencv.imwrite(object_name + '/Dataset/background1.jpg', image)
+    opencv.imwrite(object_name + '/GroundTruth/background1.png', binary_image*0.0)
+
+    motion_proxy.setAngles('HeadYaw',1,0.5)
+    time.sleep(0.5)
+    image = img_getter.get_image()
+    opencv.imwrite(object_name + '/Dataset/background2.jpg', image)
+    opencv.imwrite(object_name + '/GroundTruth/background2.png', binary_image*0.0)
+
+    motion_proxy.setAngles('HeadYaw', 0, 0.5)
+    time.sleep(0.5)
 
 if __name__ == '__main__':
     main()
