@@ -26,10 +26,10 @@ class Imitation(Machine):
                         {'trigger': 'success', 'source': 'invite', 'dest': 'grab', 'unless': 'user_quit'},
                         {'trigger': 'success', 'source': 'grab', 'dest': 'introduce', 'unless': 'user_quit'},
                         {'trigger': 'fail', 'source': 'grab', 'dest': 'grab', 'unless': 'user_quit'},
-                        {'trigger': 'success', 'source': 'introduce', 'dest': 'demo', 'unless': 'user_quit'},
-                        {'trigger': 'success', 'source': 'demo', 'dest': 'release', 'unless': 'user_quit'},
-                        {'trigger': 'success', 'source': 'release', 'dest': 'encourage', 'unless': 'user_quit'},
-                        {'trigger': 'success', 'source': 'encourage', 'dest': 'recognize', 'unless': 'user_quit'},
+                        {'trigger': 'success', 'source': 'introduce', 'dest': 'demo'},
+                        {'trigger': 'success', 'source': 'demo', 'dest': 'release'},
+                        {'trigger': 'success', 'source': 'release', 'dest': 'encourage'},
+                        {'trigger': 'success', 'source': 'encourage', 'dest': 'recognize'},
                         {'trigger': 'success', 'source': 'recognize', 'dest': 'bravo', 'unless': 'user_quit'},
                         {'trigger': 'fail', 'source': 'recognize', 'dest': 'recourage', 'unless': 'user_quit'},
                         {'trigger': 'success', 'source': 'recourage', 'dest': 'grab', 'unless': 'user_quit'},
@@ -57,13 +57,15 @@ class Imitation(Machine):
                                    'introduce' : parser.get('Lefthanded','introduce'),
                                    'demo' : parser.get('Lefthanded','demo'),
                                    'encourage' : parser.get('Lefthanded','encourage'),
+                                   'recourage' : parser.get('Lefthanded', 'recourage'),
                                    'bravo' : parser.get('Lefthanded','bravo')
                                },
                           'right': {'invite' : parser.get('Righthanded','invite'),
-                                   'introduce' : parser.get('Righthanded','introduce'),
-                                   'demo' : parser.get('Righthanded','demo'),
-                                   'encourage' : parser.get('Righthanded','encourage'),
-                                   'bravo' : parser.get('Righthanded','bravo')
+                                    'introduce' : parser.get('Righthanded','introduce'),
+                                    'demo' : parser.get('Righthanded','demo'),
+                                    'encourage' : parser.get('Righthanded','encourage'),
+                                    'recourage' : parser.get('Righthanded','recourage'),
+                                    'bravo' : parser.get('Righthanded','bravo')
                                }
                       }
 
@@ -149,14 +151,22 @@ class Imitation(Machine):
         """
         Run gesture recognition.
         """
+        print('Recognizing...')
+
         time_str = time.strftime("%Y%m%d-%H%M%S")+'-%s-%s.avi' % (self.object_name, self.gesture)
         self.grabber.robot.motion.setAngles('HeadPitch', -0.1, 0.5)
+
         self.grabber.robot.video_recorder.setCameraID(0)
         self.grabber.robot.video_recorder.startRecording('/home/nao/recordings/', time_str)
-        _ = raw_input("Recording the child's gesture. Hit <Enter> to stop.")
+        user_input = raw_input("Tracking the child's gesture. Hit <Enter> to stop.")
         _, path = self.grabber.robot.video_recorder.stopRecording()
         print('Video saved to: %s' % path)
-        self.success()
+        if user_input == '':
+            # Empty input (only <Enter> is interpretd as success)
+            self.success()
+        else:
+            # Any othe input is interpreted as failure
+            self.fail()
 
     def on_enter_recourage(self):
         """
@@ -207,7 +217,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run the immitation protocol.')
     parser.add_argument('--gesture', required=True, help='File containing the gesture descriptor.')
     parser.add_argument('hostname', help='The hostname or ip address of the robot we are working with.')
-    parser.add_argument('--initial-state', help='Start from this state (states).', default='init')
+    parser.add_argument('--initial-state', help='Start from this state ({0}).'.format(states), default='init')
     parser.add_argument('--hand', help='The default hand. This is important if we start from a state other than init.', default='left')
     parser.add_argument('--objects', default='objects.cfg', help='File containing object descriptors.')
     args = parser.parse_args()

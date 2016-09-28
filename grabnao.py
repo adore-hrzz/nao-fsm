@@ -193,7 +193,7 @@ class ObjectGestureModule(ALModule):
             if value[0]:
                 time_passed = time.time() - self.time_start
                 data = [time_passed, value[3]]
-                print(data)
+                #print(data)
                 self.data.append(data)
 
     def write_data(self, filename):
@@ -228,7 +228,7 @@ class GrabNAO:
         if robot:
             self.robot = robot
         else:
-            self.robot = NAO(host,port)
+            self.robot = NAO(host, port)
         self.image_processor = ImageProcessing(self.parser)
         self.return_point = None
 
