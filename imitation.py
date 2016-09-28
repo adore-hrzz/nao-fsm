@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from transitions import Machine
-from grabnao import GrabNAO, ObjectGestureModule
+from grabnao import GrabNAO
 import time
 #from transitions.extensions import GraphMachine as Machine
 
@@ -14,8 +14,6 @@ from ConfigParser import ConfigParser
 states = ['init','invite','grab','introduce','demo',
           'release','encourage','recognize','recourage', 
           'bravo','end']
-
-ObjectGesture = []
 
 
 class Imitation(Machine):
@@ -72,8 +70,6 @@ class Imitation(Machine):
                       }
 
         self.grabber = GrabNAO(objects,host)
-        global ObjectGesture
-        ObjectGesture = ObjectGestureModule('ObjectGesture', self.grabber.robot.broker)
 
     def on_enter_invite(self):
         """
@@ -155,17 +151,17 @@ class Imitation(Machine):
         """
         Run gesture recognition.
         """
-        #global ObjectGesture
-        #ObjectGesture.load('/home/nao/ImageSets/%s/' % self.object_name, self.object_name, 'ObjectGesture')
-        #ObjectGesture.start_tracker(0, True)
+
         print('Recognizing...')
+
+        time_str = time.strftime("%Y%m%d-%H%M%S")+'%s-%s.avi' % (self.object_name, self.gesture)
+        self.grabber.robot.video_recorder.setCameraID(0)
+        self.grabber.robot.video_recorder.startRecording('/home/nao/recordings/', time_str)
         user_input = raw_input("Tracking the child's gesture. Hit <Enter> to stop.")
+        _, path = self.grabber.robot.video_recorder.stopRecording()
+        print('Video saved to: %s' % path)
         if user_input == '':
             # Empty input (only <Enter> is interpretd as success)
-            #time_str = './logs/'+time.strftime("%Y%m%d-%H%M%S")+'.txt'
-            #ObjectGesture.write_data(time_str)
-            #ObjectGesture.stop_tracker()
-            #ObjectGesture.unload()
             self.success()
         else:
             # Any othe input is interpreted as failure

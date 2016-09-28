@@ -38,8 +38,6 @@ class ImageProcessing:
             binary_image = cv2.convertScaleAbs(binary_image*255)
 
         # TODO: remove debug output
-        cv2.imshow('Segmented object', binary_image)
-        cv2.waitKey(1)
         cv2.imwrite('object_segmented.png', binary_image)
         if cv2.countNonZero(binary_image) < int(self.processing_settings['min_size']):
             print('Object too small')
@@ -134,8 +132,6 @@ class ImageProcessing:
 
                 grab_point_image = [(hole_bb[0]+hole_bb[2])/2, (hole_bb[1]+hole_bb[3])/2]
                 cv2.circle(image, (int(grab_point_image[0]), int(grab_point_image[1])), 5, (0, 0, 255), -1)
-                cv2.imshow('Grab point', image)
-                cv2.waitKey(1)
                 cv2.imwrite('GrabPoint.png', image)
 
         else:
@@ -204,9 +200,10 @@ class ObjectGestureModule(ALModule):
         with open(filename, 'w') as file_to_write:
             pickle.dump(self.data, file_to_write)
 
-    def unload(self):
+    def unload(self, object_name):
         self.object_gesture.stopTracker()
         self.object_gesture.removeObjectKind(0)
+        self.object_gesture.removeEvent(object_name)
 
 
 class NAO:
@@ -221,6 +218,7 @@ class NAO:
         self.behavior = ALProxy('ALBehaviorManager')
         self.tts = ALProxy('ALTextToSpeech')
         self.camera = NAOImageGetter(host, port)
+        self.video_recorder = ALProxy('ALVideoRecorder')
 
 
 class GrabNAO:
