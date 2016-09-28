@@ -149,7 +149,7 @@ class Imitation(Machine):
         """
         Run gesture recognition.
         """
-        time_str = time.strftime("%Y%m%d-%H%M%S")+'%s-%s.txt' % (self.object_name, self.gesture)
+        time_str = time.strftime("%Y%m%d-%H%M%S")+'-%s-%s.avi' % (self.object_name, self.gesture)
         self.grabber.robot.video_recorder.setCameraID(0)
         self.grabber.robot.video_recorder.startRecording('/home/nao/recordings/', time_str)
         _ = raw_input("Recording the child's gesture. Hit <Enter> to stop.")
