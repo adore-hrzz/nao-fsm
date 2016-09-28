@@ -1,6 +1,9 @@
 # Log files
 logs/*.txt
 
+# Debug images
+*.png
+
 # Emacs droppings
 *~
 

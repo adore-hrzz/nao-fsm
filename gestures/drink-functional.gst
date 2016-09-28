@@ -9,7 +9,7 @@ object=Cup
 
 [Lefthanded]
 invite    = adorebasicmotions-23e157/Dodji (right)
-introduce = 
+introduce = adoregestures-359a39/Vidi ovo
 demo      = adoregestures-359a39/Drinking (left)
 encourage = adoregestures-359a39/Sada ti (left)
 recourage = 
@@ -17,7 +17,7 @@ bravo     = adorebasicmotions-23e157/Bravo
 
 [Righthanded]
 invite    = adorebasicmotions-23e157/Dodji (right)
-introduce = 
+introduce = adoregestures-359a39/Vidi ovo
 demo      = adoregestures-359a39/Drinking (right)
 encourage = adoregestures-359a39/Sada ti (right)
 recourage = p

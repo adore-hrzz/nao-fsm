@@ -1,6 +1,6 @@
 # Frog functional imitation gesture description
 [Gesture]
-name=Frog
+name=Drink
 object=Cylinder
 
 # Behavior names (lhs) have to match state-machine sate names!
@@ -9,16 +9,16 @@ object=Cylinder
 
 [Lefthanded]
 invite    = adorebasicmotions-23e157/Dodji (right)
-introduce = 
-demo      = adoregestures-359a39/Frog (left)
+introduce = adoregestures-359a39/Ovo je salica
+demo      = adoregestures-359a39/Drink (left)
 encourage = adoregestures-359a39/Sada ti (left)
 recourage = 
 bravo     = adorebasicmotions-23e157/Bravo
 
 [Righthanded]
 invite    = adorebasicmotions-23e157/Dodji (right)
-introduce = 
-demo      = adoregestures-359a39/Frog (right)
+introduce = adoregestures-359a39/Ovo je salica
+demo      = adoregestures-359a39/Drink (right)
 encourage = adoregestures-359a39/Sada ti (right)
 recourage = 
 bravo     = adorebasicmotions-23e157/Bravo
