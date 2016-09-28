@@ -197,7 +197,7 @@ class ObjectGestureModule(ALModule):
             if value[0]:
                 time_passed = time.time() - self.time_start
                 data = [time_passed, value[3]]
-                print(data)
+                #print(data)
                 self.data.append(data)
 
     def write_data(self, filename):
