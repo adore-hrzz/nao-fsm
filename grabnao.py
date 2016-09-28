@@ -219,6 +219,9 @@ class NAO:
         self.tts = ALProxy('ALTextToSpeech')
         self.camera = NAOImageGetter(host, port)
         self.video_recorder = ALProxy('ALVideoRecorder')
+        self.video_recorder.setResolution(2)
+        self.video_recorder.setFrameRate(30)
+        self.video_recorder.setVideoFormat("MJPG")
 
 
 class GrabNAO:
