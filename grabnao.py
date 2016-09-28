@@ -157,6 +157,9 @@ class NAOImageGetter:
         self.video_proxy.releaseImage(self.video)
         return image
 
+    def set_camera(self, index):
+        self.video_proxy.setActiveCamera(index)
+
     def __del__(self):
         self.video_proxy.unsubscribe(self.video)
 
@@ -214,6 +217,7 @@ class NAO:
         self.behavior = ALProxy('ALBehaviorManager')
         self.tts = ALProxy('ALTextToSpeech')
         self.camera = NAOImageGetter(host, port)
+
 
 class GrabNAO:
     def __init__(self, config_file_general, host, port=9559, robot=None):
