@@ -200,9 +200,10 @@ class ObjectGestureModule(ALModule):
         with open(filename, 'w') as file_to_write:
             pickle.dump(self.data, file_to_write)
 
-    def unload(self):
+    def unload(self, object_name):
         self.object_gesture.stopTracker()
         self.object_gesture.removeObjectKind(0)
+        self.object_gesture.removeEvent(object_name)
 
 
 class NAO:
@@ -217,6 +218,7 @@ class NAO:
         self.behavior = ALProxy('ALBehaviorManager')
         self.tts = ALProxy('ALTextToSpeech')
         self.camera = NAOImageGetter(host, port)
+        self.video_recorder = ALProxy('ALVideoRecorder')
 
 
 class GrabNAO:
