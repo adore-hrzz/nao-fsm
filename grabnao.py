@@ -144,6 +144,10 @@ class ImageProcessing:
 class NAOImageGetter:
     def __init__(self, ip, port, camera=1, resolution=kVGA, color_space=kBGRColorSpace):
         self.video_proxy = ALProxy('ALVideoDevice', ip, port)
+        print(self.video_proxy.getSubscribers())
+        #for subscriber in self.video_proxy.getSubscribers():
+        #    self.video_proxy.unsubscribe(subscriber)
+        # print(self.video_proxy.getSubscribers())
         self.video = self.video_proxy.subscribeCamera('NAOImgGet', camera, resolution, color_space, 30)
 
     def get_image(self):
@@ -159,6 +163,10 @@ class NAOImageGetter:
 
     def set_camera(self, index):
         self.video_proxy.setActiveCamera(index)
+
+    def cleanup(self):
+        print('Trying to unsubscribe %s'%self.video)
+        self.video_proxy.unsubscribe(self.video)
 
     def __del__(self):
         self.video_proxy.unsubscribe(self.video)
@@ -216,12 +224,16 @@ class NAO:
         self.motion = ALProxy('ALMotion')
         self.posture = ALProxy('ALRobotPosture')
         self.behavior = ALProxy('ALBehaviorManager')
+        self.memory = ALProxy('ALMemory')
         self.tts = ALProxy('ALTextToSpeech')
         self.camera = NAOImageGetter(host, port)
         self.video_recorder = ALProxy('ALVideoRecorder')
         self.video_recorder.setResolution(2)
         self.video_recorder.setFrameRate(30)
         self.video_recorder.setVideoFormat("MJPG")
+
+    def cleanup(self):
+        self.camera.cleanup()
 
 
 class GrabNAO:
@@ -403,6 +415,33 @@ class GrabNAO:
         self.robot.motion.wbEnableEffectorControl(chain_name, False)
         return 1, grab_point
 
+    def grab_assisted(self, direction):
+        hand_name = 'RHand'
+        print('Entered assisted grabbing')
+        val1 = 0
+        val2 = 0
+        val3 = 0
+        count = 0
+        direction = -1
+        while True:
+            count += 1
+            if val1 or val2 or val3:
+                if count > 10:
+                    print('Exiting on iteration no. %s' % count)
+                    break
+            if direction == -1:
+                hand_name = 'RHand'
+                val1 = self.robot.memory.getData("HandRightLeftTouched")
+                val2 = self.robot.memory.getData("HandRightBackTouched")
+                val3 = self.robot.memory.getData("HandRightRightTouched")
+            else:
+                hand_name = 'LHand'
+                val1 = self.robot.memory.getData("HandLeftLeftTouched")
+                val2 = self.robot.memory.getData("HandLeftBackTouched")
+                val3 = self.robot.memory.getData("HandLeftRightTouched")
+
+        self.robot.motion.setAngles(hand_name, 0.0, 0.3)
+
     def put_object_back(self, return_point, direction):
         print('Return point %s' % return_point)
         if direction == -1:
@@ -437,6 +476,10 @@ class GrabNAO:
         self.robot.motion.wbEnableEffectorControl(chain_name, True)
         self.robot.motion.positionInterpolations([chain_name], 2, points_list_2, 15, times_list_2)
         self.robot.motion.wbEnableEffectorControl(chain_name, False)
+
+    def cleanup(self):
+        print('Cleanup grabnao')
+        self.robot.cleanup()
 
 
 if __name__ == '__main__':

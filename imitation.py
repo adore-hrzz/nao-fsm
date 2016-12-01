@@ -103,19 +103,20 @@ class Imitation(Machine):
             else:
                 self.grab_point = ret_val_grab[1]
                 self.direction = direction
-        user_input = raw_input("Robot is grabbing the object. Hit <Enter> to confirm successful grab.")
-        if user_input == '':
-            # Empty input (only <Enter> is interpretd as success)
-            self.success()
-        else:
-            # Any other input is interpreted as failure
-            self.fail()
+                user_input = raw_input("Robot is grabbing the object. Hit <Enter> to confirm successful grab.")
+                if user_input == '':
+                    # Empty input (only <Enter> is interpretd as success)
+                    self.success()
+                else:
+                    # Any other input is interpreted as failure
+                    self.fail()
 
     def on_enter_assist(self):
         """
         Assist robot with grabbing
         """
         print ('Test, robot is being assisted, press <Enter> to continue')
+        self.grabber.grab_assisted(self.direction)
         self.success()
 
     def on_enter_introduce(self):
@@ -207,6 +208,7 @@ class Imitation(Machine):
         We're done.
         """
         print('Bye-bye!')
+        self.grabber.cleanup()
 
     def user_quit(self):
         """
