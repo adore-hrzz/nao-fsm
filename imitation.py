@@ -4,14 +4,14 @@
 from transitions import Machine
 from grabnao import GrabNAO
 import time
-#from transitions.extensions import GraphMachine as Machine
+# from transitions.extensions import GraphMachine as Machine
 
 from naoqi import ALProxy
 
 import argparse
 from ConfigParser import ConfigParser
 
-states = ['init','invite','grab','introduce','demo',
+states = ['init','invite','grab','assist','introduce','demo',
           'release','encourage','recognize','recourage', 
           'bravo','end']
 
@@ -25,7 +25,8 @@ class Imitation(Machine):
         transitions = [ {'trigger': 'start', 'source': 'init', 'dest': 'invite', 'unless': 'user_quit'},
                         {'trigger': 'success', 'source': 'invite', 'dest': 'grab', 'unless': 'user_quit'},
                         {'trigger': 'success', 'source': 'grab', 'dest': 'introduce', 'unless': 'user_quit'},
-                        {'trigger': 'fail', 'source': 'grab', 'dest': 'grab', 'unless': 'user_quit'},
+                        {'trigger': 'fail', 'source': 'grab', 'dest': 'assist'},
+                        {'trigger': 'success', 'source': 'assist', 'dest': 'introduce', 'unless': 'user_quit'},
                         {'trigger': 'success', 'source': 'introduce', 'dest': 'demo'},
                         {'trigger': 'success', 'source': 'demo', 'dest': 'release'},
                         {'trigger': 'success', 'source': 'release', 'dest': 'encourage'},
@@ -102,7 +103,19 @@ class Imitation(Machine):
             else:
                 self.grab_point = ret_val_grab[1]
                 self.direction = direction
+        user_input = raw_input("Robot is grabbing the object. Hit <Enter> to confirm successful grab.")
+        if user_input == '':
+            # Empty input (only <Enter> is interpretd as success)
+            self.success()
+        else:
+            # Any other input is interpreted as failure
+            self.fail()
 
+    def on_enter_assist(self):
+        """
+        Assist robot with grabbing
+        """
+        print ('Test, robot is being assisted, press <Enter> to continue')
         self.success()
 
     def on_enter_introduce(self):

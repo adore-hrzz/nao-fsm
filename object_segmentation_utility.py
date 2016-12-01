@@ -150,6 +150,9 @@ def main():
     motion_proxy.setAngles('HeadYaw', 0, 0.5)
     time.sleep(0.5)
 
+def main2():
+
+
 if __name__ == '__main__':
     main()
 
