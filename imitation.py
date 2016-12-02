@@ -48,7 +48,7 @@ class Imitation(Machine):
 
         self.grab_point = None
         self.direction = None
-        self.hand = 'left'
+        self.hand = hand
         self.object_name = parser.get('Gesture','object')
         self.gesture = parser.get('Gesture','name')
         
@@ -228,6 +228,12 @@ class Imitation(Machine):
         else:
             return False
 
+    def cleanup(self):
+        """
+        cleaning up
+        """
+        self.grabber.cleanup()
+
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Run the immitation protocol.')
@@ -245,3 +251,5 @@ if __name__ == '__main__':
         im.start()
     else:
         im.success()
+
+    im.cleanup()
