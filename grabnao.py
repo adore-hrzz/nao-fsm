@@ -417,17 +417,16 @@ class GrabNAO:
 
     def grab_assisted(self, direction):
         hand_name = 'RHand'
-        print('Entered assisted grabbing')
         val1 = 0
         val2 = 0
         val3 = 0
         count = 0
         direction = -1
+        # TODO: debug tactile sensor 
         while True:
             count += 1
             if val1 or val2 or val3:
                 if count > 10:
-                    print('Exiting on iteration no. %s' % count)
                     break
             if direction == -1:
                 hand_name = 'RHand'

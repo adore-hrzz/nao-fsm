@@ -49,10 +49,126 @@ def medfilt (x, k):
 ########################################################################################################################
 
 
+def hist_thresh_new(image, seed_color, sat_cutoff, val_cutoff, window_size, bins, diagnostic):
+    image = cv2.medianBlur(image, 9)
+    image = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
+    #image[:, :, 0] *= 255.0/180.0
+
+    hue_hist, nums = np.histogram(image[:, :, 0], bins, (0, 255))
+    # width = 0.7 * (nums[1] - nums[0])
+    # center = (nums[:-1] + nums[1:]) / 2
+    # plt.bar(center, hue_hist, align='center', width=width)
+    # plt.ion()
+    # plt.show()
+    # plt.pause(1)
+
+    hue_hist_filtered = medfilt(np.array(hue_hist), 3)
+
+    # plt.bar(center, hue_hist_filtered, align='center', width=width)
+    # plt.ion()
+    # plt.show()
+    # plt.pause(1)
+    # sat_mask = image[:, :, 1] > 0 #sat_cutoff
+    # val_mask = image[:, :, 2] > 0 #val_cutoff
+    #
+    # cv2.imshow("sat_mask", sat_mask*255)
+    # cv2.imshow("val_mask", val_mask*255)
+    # cv2.waitKey(1)
+
+    # find local minimums in the histogram
+    local_minimums = []
+    for i in range(window_size):
+        window = np.concatenate((hue_hist_filtered[(bins-1-window_size+i):bins], hue_hist_filtered[0:(i+window_size+1)]))
+        if hue_hist_filtered[i] == min(window):
+            local_minimums += [i]
+    for i in range(window_size, bins-window_size-1):
+        window = hue_hist_filtered[(i-window_size):(i+window_size+1)]
+        if hue_hist_filtered[i] == min(window):
+            local_minimums += [i]
+    for i in range(bins-window_size, bins-1):
+        window = np.concatenate((hue_hist_filtered[(i-window_size):(bins)], hue_hist_filtered[0:i+window_size-bins+1]))
+        if hue_hist_filtered[i] == min(window):
+            local_minimums += [i]
+
+    # did not find any minimums --> error!
+    if len(local_minimums) <= 1:
+        print('Something went wrong in calculating local minimums')
+        return None
+
+    # remove local minimums next to each other
+    indices_to_delete = []
+    for i in range(len(local_minimums)-1):
+        if local_minimums[i+1] == local_minimums[i]+1:
+            indices_to_delete += [i+1]
+    if indices_to_delete:
+        for index in reversed(indices_to_delete):
+            del local_minimums[index]
+
+    modality_means = []
+    px_num = []
+    mean_accumulator = 0
+    num_el = 0
+
+    # calculate mean values for each mode
+    # mode is between two local minimums in the histogram
+    # modality mean is calculated as weighted average of values in mode
+    for i in range(0, len(local_minimums)-1):
+        for j in range(local_minimums[i], local_minimums[i+1]):
+            mean_accumulator += j*hue_hist_filtered[j]
+            num_el += hue_hist_filtered[j]
+        px_num += [num_el]
+        modality_means += [1.0*mean_accumulator/num_el]
+        mean_accumulator = 0
+        num_el = 0
+
+    # hue values are circular, wrap around to calculate mean between last and first minimum
+    for j in range(local_minimums[len(local_minimums)-1], bins)+range(0, local_minimums[0]):
+        if j > bins/2.0:
+            mean_accumulator += (j-bins)*hue_hist_filtered[j]
+        else:
+            mean_accumulator += j*hue_hist_filtered[j]
+        num_el += hue_hist_filtered[j]
+    t_means = 1.0*mean_accumulator/num_el
+    px_num += [num_el]
+    if t_means < 0:
+        t_means += bins
+    modality_means += [t_means]
+
+    bin_val = bins/255.0
+    hist_seed = round(255.0*seed_color*bin_val)
+    best = -1
+    closest = bins+100
+
+    for i in range(0, len(modality_means)):
+        # TODO: check what this number 10000 does
+        print('hist_seed-modality_means[i] = %s' % (hist_seed-modality_means[i]))
+        print('px_num[i] = %s' % px_num[i])
+        if closest > abs(hist_seed-modality_means[i]) and px_num[i] > 1000:
+            best = i
+            closest = abs(hist_seed-modality_means[i])
+
+    print('best = %s' % best)
+    print('closest = %s' % closest)
+    if best == len(modality_means)-1:
+        hue_mask = np.logical_or(image[:, :, 0] >= local_minimums[len(local_minimums)-1]/bin_val, image[:, :, 0] <= local_minimums[0]/bin_val)
+    else:
+        hue_mask = np.logical_and(image[:, :, 0] >= local_minimums[best]/bin_val, image[:, :, 0] <= local_minimums[best+1]/bin_val)
+
+    sat_mask = image[:, :, 1] > sat_cutoff
+    val_mask = image[:, :, 2] > val_cutoff
+
+    res_img = np.logical_and(hue_mask, val_mask)
+    res_img = np.logical_and(res_img, sat_mask)
+    res_img = cv2.dilate(res_img*1.0, np.ones((10, 10)))
+    res_img = cv2.erode(res_img*1.0, np.ones((10, 10)))
+
+    return cv2.convertScaleAbs(res_img*255)
+
+
 def histThresh(image, seedcolor, diagnostic):
     image = cv2.medianBlur(image, 9)
     image=cv2.cvtColor(image,cv2.cv.CV_RGB2HSV)
-    image[:,:,0]*=255.0/180.0 # not work!!!
+    # image[:,:,0]*=255.0/180.0 # not work!!!
     width = np.size(image,1)
     height = np.size(image,0)
     saturationCutoff=255*0.3

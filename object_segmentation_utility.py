@@ -5,7 +5,7 @@ import cv2 as opencv
 from vision_definitions import kBGRColorSpace, kVGA
 import numpy as np
 from grabnao import NAOImageGetter
-from NaoImageProcessing import histThresh
+from NaoImageProcessing import histThresh, hist_thresh_new
 import os
 
 
@@ -151,8 +151,33 @@ def main():
     time.sleep(0.5)
 
 def main2():
+    arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument("config")
+    args = arg_parser.parse_args()
+    conf_parser = ConfigParser.ConfigParser()
+    conf_parser.read(args.config)
+
+    ip = conf_parser.get('Settings', 'IP')
+    port = conf_parser.getint('Settings', 'PORT')
+    object_name = conf_parser.get('Settings', 'object')
+
+    opencv.namedWindow("Segmented")
+    img_getter = NAOImageGetter(ip, port, camera=1)
+    motion_proxy = ALProxy('ALMotion', ip, port)
+    posture_proxy = ALProxy('ALRobotPosture', ip, port)
+    posture_proxy.goToPosture("StandInit", 0.5)
+    trackbars2()
+    while True:
+        obj_color = opencv.getTrackbarPos('ObjColor', 'Trackbars')
+        image = img_getter.get_image()
+        segmented = hist_thresh_new(image, obj_color/255.0, 0.3*255, 0.1*255, 5, 128, 0)
+        opencv.imshow("Segmented", segmented)
+        opencv.imshow("Original", image)
+        if opencv.waitKey(10) == 27:
+            break
+    opencv.destroyAllWindows()
 
 
 if __name__ == '__main__':
-    main()
+    main2()
 

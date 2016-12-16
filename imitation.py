@@ -246,7 +246,6 @@ if __name__ == '__main__':
 
     im = Imitation(args.gesture, args.hostname, args.objects, args.initial_state, args.hand)
     #im.graph.draw('state_diagram.png',prog='dot')
-
     if args.initial_state == 'init':
         im.start()
     else:
