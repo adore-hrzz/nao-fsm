@@ -36,6 +36,13 @@ def trackbars2():
     opencv.createTrackbar('ObjColor', 'Trackbars', 0, 256, nothing)
 
 
+def trackbars3():
+    opencv.namedWindow('Trackbars', opencv.WINDOW_AUTOSIZE)
+    opencv.createTrackbar('ObjColor', 'Trackbars', 0, 256, nothing)
+    opencv.createTrackbar('SatCutoff', 'Trackbars', 0, 256, nothing)
+    opencv.createTrackbar('ValCutoff', 'Trackbars', 0, 256, nothing)
+
+
 def segmentation_hsv(img_getter, conf_parser, object_name, args):
     trackbars()
     hue_min = 0
@@ -150,6 +157,7 @@ def main():
     motion_proxy.setAngles('HeadYaw', 0, 0.5)
     time.sleep(0.5)
 
+
 def main2():
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument("config")
@@ -166,16 +174,29 @@ def main2():
     motion_proxy = ALProxy('ALMotion', ip, port)
     posture_proxy = ALProxy('ALRobotPosture', ip, port)
     posture_proxy.goToPosture("StandInit", 0.5)
-    trackbars2()
+    trackbars3()
+    obj_color = 0.0
+    sat_cutoff = 0.0
+    val_cutoff = 0.0
     while True:
         obj_color = opencv.getTrackbarPos('ObjColor', 'Trackbars')
+        sat_cutoff = opencv.getTrackbarPos('SatCutoff', 'Trackbars')
+        val_cutoff = opencv.getTrackbarPos('ValCutoff', 'Trackbars')
+        print(val_cutoff)
         image = img_getter.get_image()
-        segmented = hist_thresh_new(image, obj_color/255.0, 0.3*255, 0.1*255, 5, 128, 0)
+        segmented = hist_thresh_new(image, obj_color/255.0, sat_cutoff, val_cutoff, 10, 128, 0)
         opencv.imshow("Segmented", segmented)
         opencv.imshow("Original", image)
         if opencv.waitKey(10) == 27:
             break
     opencv.destroyAllWindows()
+    if object_name not in conf_parser.sections():
+        conf_parser.add_section(object_name)
+    conf_parser.set(object_name, 'hue', obj_color)
+    conf_parser.set(object_name, 'sat_cutoff', sat_cutoff)
+    conf_parser.set(object_name, 'val_cutoff', val_cutoff)
+    with open(args.config, 'wb') as configfile:
+        conf_parser.write(configfile)
 
 
 if __name__ == '__main__':

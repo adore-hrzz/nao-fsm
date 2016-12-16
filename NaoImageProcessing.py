@@ -141,14 +141,14 @@ def hist_thresh_new(image, seed_color, sat_cutoff, val_cutoff, window_size, bins
 
     for i in range(0, len(modality_means)):
         # TODO: check what this number 10000 does
-        print('hist_seed-modality_means[i] = %s' % (hist_seed-modality_means[i]))
-        print('px_num[i] = %s' % px_num[i])
+        # print('hist_seed-modality_means[i] = %s' % (hist_seed-modality_means[i]))
+        # print('px_num[i] = %s' % px_num[i])
         if closest > abs(hist_seed-modality_means[i]) and px_num[i] > 1000:
             best = i
             closest = abs(hist_seed-modality_means[i])
 
-    print('best = %s' % best)
-    print('closest = %s' % closest)
+    # print('best = %s' % best)
+    # print('closest = %s' % closest)
     if best == len(modality_means)-1:
         hue_mask = np.logical_or(image[:, :, 0] >= local_minimums[len(local_minimums)-1]/bin_val, image[:, :, 0] <= local_minimums[0]/bin_val)
     else:
