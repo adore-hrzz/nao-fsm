@@ -25,7 +25,7 @@ class ImageProcessing:
         if self.processing_settings['segmentation_type'] == '0':
             hue = float(object_settings['hue'])
             binary_image = NaoImageProcessing.histThresh(img, hue, 0)
-        else:
+        elif self.processing_settings['segmentation_type'] == '1':
             h_min = int(object_settings['hmin'])
             h_max = int(object_settings['hmax'])
             s_min = int(object_settings['smin'])
@@ -36,6 +36,11 @@ class ImageProcessing:
             binary_image = cv2.dilate(binary_image*1.0, np.ones((10, 10)))
             binary_image = cv2.erode(binary_image*1.0, np.ones((10, 10)))
             binary_image = cv2.convertScaleAbs(binary_image*255)
+        else:
+            hue = float(object_settings['hue'])
+            saturation = float(object_settings['sat_cutoff'])
+            value = float(object_settings['val_cutoff'])
+            binary_image = NaoImageProcessing.hist_thresh_new(img, hue, saturation, value, 10, 128)
 
         # TODO: remove debug output
         cv2.imwrite('object_segmented.png', binary_image)

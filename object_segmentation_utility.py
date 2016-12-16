@@ -184,7 +184,7 @@ def main2():
         val_cutoff = opencv.getTrackbarPos('ValCutoff', 'Trackbars')
         print(val_cutoff)
         image = img_getter.get_image()
-        segmented = hist_thresh_new(image, obj_color/255.0, sat_cutoff, val_cutoff, 10, 128, 0)
+        segmented = hist_thresh_new(image, obj_color/255.0, sat_cutoff, val_cutoff, 10, 128)
         opencv.imshow("Segmented", segmented)
         opencv.imshow("Original", image)
         if opencv.waitKey(10) == 27:
