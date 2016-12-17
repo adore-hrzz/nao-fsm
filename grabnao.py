@@ -17,14 +17,13 @@ class ImageProcessing:
 
     def calculate_grab_point(self, image, object_name):
         object_settings = dict(self.parser.items(object_name))
-
         img = cv2.medianBlur(image, 9)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
         hue_img = cv2.split(img)[0]/180.0
 
         if self.processing_settings['segmentation_type'] == '0':
             hue = float(object_settings['hue'])
-            binary_image = NaoImageProcessing.histThresh(img, hue, 0)
+            binary_image = NaoImageProcessing.histThresh(image, hue, 0)
         elif self.processing_settings['segmentation_type'] == '1':
             h_min = int(object_settings['hmin'])
             h_max = int(object_settings['hmax'])
@@ -37,10 +36,10 @@ class ImageProcessing:
             binary_image = cv2.erode(binary_image*1.0, np.ones((10, 10)))
             binary_image = cv2.convertScaleAbs(binary_image*255)
         else:
-            hue = float(object_settings['hue'])
-            saturation = float(object_settings['sat_cutoff'])
-            value = float(object_settings['val_cutoff'])
-            binary_image = NaoImageProcessing.hist_thresh_new(img, hue, saturation, value, 10, 128)
+            hue = int(object_settings['hue'])
+            saturation = int(object_settings['sat_cutoff'])
+            value = int(object_settings['val_cutoff'])
+            binary_image = NaoImageProcessing.hist_thresh_new(img, hue, saturation, value, 5, 128)
 
         # TODO: remove debug output
         cv2.imwrite('object_segmented.png', binary_image)
@@ -53,7 +52,7 @@ class ImageProcessing:
         hierarchy = hierarchy[0]
         areas = []
         avg_colors = []
-        object_color = float(object_settings['hue'])
+        object_color = float(object_settings['hue'])/180.0
         for i in range(0, len(contours)):
             if hierarchy[i][3] >= 0:
                 areas += [0]
@@ -67,7 +66,7 @@ class ImageProcessing:
                 areas += [area]
                 avg_colors += [min(abs(avg_color-object_color), abs(1-avg_color-object_color))]
         best_color = min(avg_colors)
-
+        print('best color %s' % best_color)
         color_threshold = float(self.processing_settings['color_threshold'])
         if best_color > color_threshold:
             print('Best color over threshold %s' % best_color)
@@ -105,6 +104,8 @@ class ImageProcessing:
                 direction = -1
             else:
                 direction = 1
+            cv2.circle(image, (int(grab_point_image[0]), int(grab_point_image[1])), 5, (0, 0, 255), -1)
+            cv2.imwrite('GrabPoint.png', image)
 
         elif object_name == 'Cup':
             hole = hierarchy[object_id][2]
@@ -386,6 +387,7 @@ class GrabNAO:
         self.robot.motion.positionInterpolations([chain_name], 2, points_before_grasp, motion_mask, times_before_grasp, True)
 
         goal_point = np.asarray(approach_point[0:3])
+
         reached_point = np.asarray(self.robot.motion.getPosition(chain_name, 2, True)[0:3])
         diff = np.linalg.norm(reached_point-goal_point)
         count = 0
@@ -398,8 +400,9 @@ class GrabNAO:
             count += 1
             if count > 10:
                 break
-
+        print('Distance to approach point %s' % diff)
         goal_point = np.asarray(grab_point[0:3])
+        print('Grab point %s' % goal_point)
         reached_point = np.asarray(self.robot.motion.getPosition(chain_name, 2, True)[0:3])
         diff = np.linalg.norm(reached_point-goal_point)
         count = 0
@@ -412,8 +415,9 @@ class GrabNAO:
             count += 1
             if count > 10:
                 print('Failed to reach the object')
+                print('Distance to grab point %s' % diff)
                 return -1, None
-
+        print('Distance to grab point %s' % diff)
         self.robot.motion.setAngles(hand_name, 0.0, 0.3)
         self.robot.motion.positionInterpolations([chain_name], 2, lift_point, motion_mask, 1)
         self.robot.motion.positionInterpolations(["Torso"], 2, behavior_pose, motion_mask, 1)
@@ -421,6 +425,7 @@ class GrabNAO:
         return 1, grab_point
 
     def grab_assisted(self, direction):
+        # TODO: change to use the hand based on direction
         hand_name = 'RHand'
         val1 = 0
         val2 = 0
@@ -445,6 +450,7 @@ class GrabNAO:
                 val3 = self.robot.memory.getData("HandLeftRightTouched")
 
         self.robot.motion.setAngles(hand_name, 0.0, 0.3)
+        # TODO: return flag and return point
 
     def put_object_back(self, return_point, direction):
         print('Return point %s' % return_point)

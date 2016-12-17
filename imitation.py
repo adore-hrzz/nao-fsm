@@ -106,6 +106,7 @@ class Imitation(Machine):
                 user_input = raw_input("Robot is grabbing the object. Hit <Enter> to confirm successful grab.")
                 if user_input == '':
                     # Empty input (only <Enter> is interpretd as success)
+                    # TODO: add close hand function
                     self.success()
                 else:
                     # Any other input is interpreted as failure

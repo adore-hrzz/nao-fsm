@@ -50,17 +50,17 @@ def medfilt (x, k):
 
 
 def hist_thresh_new(image, seed_color, sat_cutoff, val_cutoff, window_size, bins):
-    image = cv2.medianBlur(image, 9)
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    # image = cv2.medianBlur(image, 9)
+    # image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     #image[:, :, 0] *= 255.0/180.0
 
     hue_hist, nums = np.histogram(image[:, :, 0], bins, (0, 255))
-    # width = 0.7 * (nums[1] - nums[0])
-    # center = (nums[:-1] + nums[1:]) / 2
-    # plt.bar(center, hue_hist, align='center', width=width)
-    # plt.ion()
-    # plt.show()
-    # plt.pause(1)
+    width = 0.7 * (nums[1] - nums[0])
+    center = (nums[:-1] + nums[1:]) / 2
+    plt.bar(center, hue_hist, align='center', width=width)
+    plt.ion()
+    plt.show()
+    plt.pause(1)
 
     hue_hist_filtered = medfilt(np.array(hue_hist), 3)
 
@@ -104,6 +104,7 @@ def hist_thresh_new(image, seed_color, sat_cutoff, val_cutoff, window_size, bins
         for index in reversed(indices_to_delete):
             del local_minimums[index]
 
+    print('Local minimums: %s' % local_minimums)
     modality_means = []
     px_num = []
     mean_accumulator = 0
@@ -113,11 +114,15 @@ def hist_thresh_new(image, seed_color, sat_cutoff, val_cutoff, window_size, bins
     # mode is between two local minimums in the histogram
     # modality mean is calculated as weighted average of values in mode
     for i in range(0, len(local_minimums)-1):
+        print('--------------------------')
         for j in range(local_minimums[i], local_minimums[i+1]):
             mean_accumulator += j*hue_hist_filtered[j]
             num_el += hue_hist_filtered[j]
         px_num += [num_el]
-        modality_means += [1.0*mean_accumulator/num_el]
+        if num_el == 0:
+            modality_means += [local_minimums[i]/2.0+local_minimums[i+1]/2.0]
+        else:
+            modality_means += [1.0*mean_accumulator/num_el]
         mean_accumulator = 0
         num_el = 0
 
@@ -128,14 +133,21 @@ def hist_thresh_new(image, seed_color, sat_cutoff, val_cutoff, window_size, bins
         else:
             mean_accumulator += j*hue_hist_filtered[j]
         num_el += hue_hist_filtered[j]
-    t_means = 1.0*mean_accumulator/num_el
+    if num_el == 0:
+        t_means = local_minimums[0]/2.0+bins/2.0+local_minimums[-1]/2.0
+    else:
+        t_means = 1.0*mean_accumulator/num_el
     px_num += [num_el]
     if t_means < 0:
         t_means += bins
     modality_means += [t_means]
 
-    bin_val = bins/255.0
-    hist_seed = round(255.0*seed_color*bin_val)
+    print('Modality means: %s' % modality_means)
+    print('px_num: %s' % px_num)
+
+    bin_val = bins/180.0
+    hist_seed = round(seed_color*bin_val)
+    print('hist_seed %s' % hist_seed)
     best = -1
     closest = bins+100
 
@@ -147,13 +159,12 @@ def hist_thresh_new(image, seed_color, sat_cutoff, val_cutoff, window_size, bins
             best = i
             closest = abs(hist_seed-modality_means[i])
 
-    # print('best = %s' % best)
-    # print('closest = %s' % closest)
+    print('best = %s' % best)
+    print('closest = %s' % closest)
     if best == len(modality_means)-1:
         hue_mask = np.logical_or(image[:, :, 0] >= local_minimums[len(local_minimums)-1]/bin_val, image[:, :, 0] <= local_minimums[0]/bin_val)
     else:
         hue_mask = np.logical_and(image[:, :, 0] >= local_minimums[best]/bin_val, image[:, :, 0] <= local_minimums[best+1]/bin_val)
-
     sat_mask = image[:, :, 1] > sat_cutoff
     val_mask = image[:, :, 2] > val_cutoff
 
