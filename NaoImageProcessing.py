@@ -51,7 +51,7 @@ def medfilt (x, k):
 
 def hist_thresh_new(image, seed_color, sat_cutoff, val_cutoff, window_size, bins):
     image = cv2.medianBlur(image, 9)
-    image = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     #image[:, :, 0] *= 255.0/180.0
 
     hue_hist, nums = np.histogram(image[:, :, 0], bins, (0, 255))
