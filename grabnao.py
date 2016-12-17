@@ -39,7 +39,7 @@ class ImageProcessing:
             hue = int(object_settings['hue'])
             saturation = int(object_settings['sat_cutoff'])
             value = int(object_settings['val_cutoff'])
-            binary_image = NaoImageProcessing.hist_thresh_new(img, hue, saturation, value, 5, 128)
+            binary_image = NaoImageProcessing.hist_thresh_new(img, hue, saturation, value, 15, 128)
 
         # TODO: remove debug output
         cv2.imwrite('object_segmented.png', binary_image)
@@ -66,7 +66,7 @@ class ImageProcessing:
                 areas += [area]
                 avg_colors += [min(abs(avg_color-object_color), abs(1-avg_color-object_color))]
         best_color = min(avg_colors)
-        print('best color %s' % best_color)
+        # print('best color %s' % best_color)
         color_threshold = float(self.processing_settings['color_threshold'])
         if best_color > color_threshold:
             print('Best color over threshold %s' % best_color)

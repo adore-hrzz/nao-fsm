@@ -188,7 +188,7 @@ def main2():
         img = opencv.cvtColor(img, opencv.COLOR_BGR2HSV)
         # opencv.imshow('Image HSV', img)
 
-        segmented = hist_thresh_new(img, obj_color/255.0, sat_cutoff, val_cutoff, 5, 128)
+        segmented = hist_thresh_new(img, obj_color, sat_cutoff, val_cutoff, 15, 128)
         opencv.imshow("Segmented", segmented)
         opencv.imshow("Original", image)
         if opencv.waitKey(10) == 27:
