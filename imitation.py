@@ -107,6 +107,7 @@ class Imitation(Machine):
                 if user_input == '':
                     # Empty input (only <Enter> is interpretd as success)
                     # TODO: add close hand function
+                    self.grabber.close_hand(self.direction)
                     self.success()
                 else:
                     # Any other input is interpreted as failure

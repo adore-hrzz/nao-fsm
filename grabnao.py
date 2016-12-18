@@ -246,6 +246,7 @@ class NAO:
         self.camera.cleanup()
 
 
+
 class GrabNAO:
     def __init__(self, config_file_general, host, port=9559, robot=None):
         self.parser = ConfigParser.ConfigParser()
@@ -427,6 +428,13 @@ class GrabNAO:
         self.robot.motion.positionInterpolations(["Torso"], 2, behavior_pose, motion_mask, 1)
         self.robot.motion.wbEnableEffectorControl(chain_name, False)
         return 1, grab_point
+
+    def close_hand(self, direction):
+        if direction == -1:
+            hand_name = 'RHand'
+        else:
+            hand_name = 'LHand'
+        self.robot.motion.setAngles(hand_name, 0.0, 0.3)
 
     def grab_assisted(self, direction):
         # TODO: change to use the hand based on direction
