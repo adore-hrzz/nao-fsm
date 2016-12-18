@@ -120,13 +120,16 @@ class ImageProcessing:
 
             for i in hole_list:
                 hole_bb = NaoImageProcessing.getBB(contours[i])
-                [up_down, left_right] = NaoImageProcessing.cmpBB(object_bb, hole_bb)
+                [up_down, left_right] = NaoImageProcessing.cmpBB_new(object_bb, hole_bb)
 
                 if abs(left_right) > abs(up_down):
+                    print('abs(left_right) > abs(up_down)')
                     if best_ratio < abs(left_right):
+                        print('best_ration < abs(left_right)')
                         best_hole = i
                         best_ratio = abs(left_right)
                         side = left_right
+                        print('side %s' % side)
 
             if best_hole == -1:
                 print('Determination of best hole failed')

@@ -598,6 +598,19 @@ def getBB(contour):
             ytlo=contour[i][0][1]
     return [xtlo,ytlo,xthi,ythi]
 
+def cmpBB_new(outer, inner):
+    rightArea = (outer[2]-inner[2])*(inner[3]-inner[1])
+    leftArea = (inner[0]- outer[0])*(inner[3]-inner[1])
+    topArea = (inner[1]- outer[1])*(inner[2]-inner[0])
+    bottomArea = (outer[3]-inner[3])*(inner[2]-inner[0])
+    leftRight = abs(rightArea-leftArea)*1.0/max(rightArea,leftArea)
+    if (rightArea<leftArea):
+        leftRight*=-1.0
+    upDown = abs(topArea-bottomArea)/max(topArea,bottomArea)
+    if (topArea<bottomArea):
+        upDown*=-1.0
+    return [upDown,leftRight]
+
 def cmpBB(outer, inner):
     bottomArea = (outer[2]-inner[2])*(inner[3]-inner[1])
     topArea = (inner[0]- outer[0])*(inner[3]-inner[1])
