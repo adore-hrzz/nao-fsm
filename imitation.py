@@ -59,14 +59,16 @@ class Imitation(Machine):
                                    'demo' : parser.get('Lefthanded','demo'),
                                    'encourage' : parser.get('Lefthanded','encourage'),
                                    'recourage' : parser.get('Lefthanded', 'recourage'),
-                                   'bravo' : parser.get('Lefthanded','bravo')
+                                   'bravo' : parser.get('Lefthanded','bravo'),
+                                   'assist' : parser.get('Lefthanded', 'assist')
                                },
                           'right': {'invite' : parser.get('Righthanded','invite'),
                                     'introduce' : parser.get('Righthanded','introduce'),
                                     'demo' : parser.get('Righthanded','demo'),
                                     'encourage' : parser.get('Righthanded','encourage'),
                                     'recourage' : parser.get('Righthanded','recourage'),
-                                    'bravo' : parser.get('Righthanded','bravo')
+                                    'bravo' : parser.get('Righthanded','bravo'),
+                                    'assist' : parser.get('Righthanded', 'assist')
                                }
                       }
 
@@ -94,15 +96,14 @@ class Imitation(Machine):
             print('Grab point calculation failed')
             self.fail()
         else:
-            grab_point, direction = ret_val_calc[1]
-            ret_val_grab = self.grabber.grab_object(self.object_name, grab_point, direction)
+            grab_point, self.direction = ret_val_calc[1]
+            ret_val_grab = self.grabber.grab_object(self.object_name, grab_point, self.direction)
 
             if ret_val_grab == -1:
                 print('Grabbing failed')
                 self.fail()
             else:
                 self.grab_point = ret_val_grab[1]
-                self.direction = direction
                 user_input = raw_input("Robot is grabbing the object. Hit <Enter> to confirm successful grab.")
                 if user_input == '':
                     # Empty input (only <Enter> is interpretd as success)
@@ -118,6 +119,13 @@ class Imitation(Machine):
         Assist robot with grabbing
         """
         print ('Test, robot is being assisted, press <Enter> to continue')
+        if self.direction == -1:
+            self.hand = 'right'
+        else:
+            self.hand = 'left'
+        bhv = self.behaviors[self.hand][self.state]
+        if bhv:
+            self.grabber.robot.behavior.runBehavior(bhv)
         self.grabber.grab_assisted(self.direction)
         self.success()
 

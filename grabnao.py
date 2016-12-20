@@ -403,6 +403,7 @@ class GrabNAO:
             reached_point = np.asarray(self.robot.motion.getPosition(chain_name, 2, True)[0:3])
             diff = np.linalg.norm(reached_point-goal_point)
             count += 1
+            print(count)
             if count > 10:
                 break
         print('Distance to approach point %s' % diff)
@@ -432,40 +433,59 @@ class GrabNAO:
     def close_hand(self, direction):
         if direction == -1:
             hand_name = 'RHand'
+            # chain_name = 'RArm'
         else:
             hand_name = 'LHand'
+            # chain_name = 'LArm'
         self.robot.motion.setAngles(hand_name, 0.0, 0.3)
+        # lift hand
+        # current_point = np.asarray(self.robot.motion.getPosition(chain_name, 2, True)[0:3])
+        # current_point[2] += 0.05
+        # self.robot.motion.wbEnableEffectorControl(chain_name, True)
+        # self.robot.motion.positionInterpolations([chain_name], 2, current_point, 7, 1)
+        # self.robot.motion.wbEnableEffectorControl(chain_name, False)
 
     def grab_assisted(self, direction):
         # TODO: change to use the hand based on direction
-        hand_name = 'RHand'
+        hand_name = ''
         val1 = 0
         val2 = 0
         val3 = 0
         count = 0
-        direction = -1
         # TODO: debug tactile sensor 
         while True:
             count += 1
+            val1 = self.robot.memory.getData("FrontTactilTouched")
+            val2 = self.robot.memory.getData("MiddleTactilTouched")
+            val3 = self.robot.memory.getData("RearTactilTouched")
             if val1 or val2 or val3:
-                if count > 10:
+                if count > 3:
                     break
             if direction == -1:
                 hand_name = 'RHand'
-                val1 = self.robot.memory.getData("HandRightLeftTouched")
-                val2 = self.robot.memory.getData("HandRightBackTouched")
-                val3 = self.robot.memory.getData("HandRightRightTouched")
+            #     val1 = self.robot.memory.getData("HandRightLeftTouched")
+            #     val2 = self.robot.memory.getData("HandRightBackTouched")
+            #     val3 = self.robot.memory.getData("HandRightRightTouched")
             else:
                 hand_name = 'LHand'
-                val1 = self.robot.memory.getData("HandLeftLeftTouched")
-                val2 = self.robot.memory.getData("HandLeftBackTouched")
-                val3 = self.robot.memory.getData("HandLeftRightTouched")
-
-        self.robot.motion.setAngles(hand_name, 0.0, 0.3)
+            #     val1 = self.robot.memory.getData("HandLeftLeftTouched")
+            #     val2 = self.robot.memory.getData("HandLeftBackTouched")
+            #     val3 = self.robot.memory.getData("HandLeftRightTouched")
+        if hand_name:
+            self.robot.motion.setAngles(hand_name, 0.0, 0.3)
         # TODO: return flag and return point
 
     def put_object_back(self, return_point, direction):
+        if not return_point:
+            print('There is no return point')
+            if direction == -1:
+                return_point = [0.21650418639183044, -0.06975226104259491, 0.3368774652481079, 0.051720183342695236, 0.33109599351882935, 0.26362404227256775]
+            else:
+                direction = 1
+                return_point = [0.20216235518455505, 0.04532930999994278, 0.33338943123817444, 0.025482231751084328, 0.20920389890670776, -0.5539942383766174]
+
         print('Return point %s' % return_point)
+        print('Direction %s' % direction)
         if direction == -1:
             hand_name = 'RHand'
             chain_name = 'RArm'
