@@ -246,7 +246,6 @@ class NAO:
         self.camera.cleanup()
 
 
-
 class GrabNAO:
     def __init__(self, config_file_general, host, port=9559, robot=None):
         self.parser = ConfigParser.ConfigParser()
@@ -475,14 +474,20 @@ class GrabNAO:
             self.robot.motion.setAngles(hand_name, 0.0, 0.3)
         # TODO: return flag and return point
 
-    def put_object_back(self, return_point, direction):
+    def put_object_back(self, return_point, object_name, direction):
         if not return_point:
             print('There is no return point')
             if direction == -1:
-                return_point = [0.21650418639183044, -0.06975226104259491, 0.3368774652481079, 0.051720183342695236, 0.33109599351882935, 0.26362404227256775]
+                if object_name == 'Cup':
+                    return_point = [0.11727181077003479, 0.12741899490356445, 0.2591964900493622, -1.2810202836990356, 0.5643281936645508, -0.009264674037694931]
+                else:
+                    return_point = [0.21650418639183044, -0.06975226104259491, 0.3368774652481079, 0.051720183342695236, 0.33109599351882935, 0.26362404227256775]
             else:
                 direction = 1
-                return_point = [0.20216235518455505, 0.04532930999994278, 0.33338943123817444, 0.025482231751084328, 0.20920389890670776, -0.5539942383766174]
+                if object_name == 'Cup':
+                    return_point = [0.18634453415870667, 0.024101756513118744, 0.33464834094047546, -1.7019013166427612, 0.10675026476383209, -0.437185138463974]
+                else:
+                    return_point = [0.20216235518455505, 0.04532930999994278, 0.33338943123817444, 0.025482231751084328, 0.20920389890670776, -0.5539942383766174]
 
         print('Return point %s' % return_point)
         print('Direction %s' % direction)

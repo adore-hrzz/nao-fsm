@@ -158,7 +158,7 @@ class Imitation(Machine):
         Release the object.
         """
         print('Releasing...')
-        self.grabber.put_object_back(self.grab_point, self.direction)
+        self.grabber.put_object_back(self.grab_point, self.object_name, self.direction)
         #self.grabber.init_pose()
         self.success()
 

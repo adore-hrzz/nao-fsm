@@ -38,7 +38,7 @@ def trackbars2():
 
 def trackbars3():
     opencv.namedWindow('Trackbars', opencv.WINDOW_AUTOSIZE)
-    opencv.createTrackbar('ObjColor', 'Trackbars', 0, 256, nothing)
+    opencv.createTrackbar('ObjColor', 'Trackbars', 0, 180, nothing)
     opencv.createTrackbar('SatCutoff', 'Trackbars', 0, 256, nothing)
     opencv.createTrackbar('ValCutoff', 'Trackbars', 0, 256, nothing)
 
@@ -61,8 +61,8 @@ def segmentation_hsv(img_getter, conf_parser, object_name, args):
         image = img_getter.get_image()
         img_hsv = opencv.cvtColor(image, opencv.COLOR_BGR2HSV)
         segmented = opencv.inRange(img_hsv, (hue_min, sat_min, val_min), (hue_max, sat_max, val_max))
-        segmented = opencv.dilate(segmented*1.0, np.ones((10, 10)))
-        segmented = opencv.erode(segmented*1.0, np.ones((10, 10)))
+        segmented = opencv.dilate(segmented, np.ones((10, 10)))
+        segmented = opencv.erode(segmented, np.ones((10, 10)))
         opencv.imshow("Segmented", segmented)
         opencv.imshow("Original", image)
         if opencv.waitKey(10) == 27:
@@ -188,7 +188,7 @@ def main2():
         img = opencv.cvtColor(img, opencv.COLOR_BGR2HSV)
         # opencv.imshow('Image HSV', img)
 
-        segmented = hist_thresh_new(img, obj_color, sat_cutoff, val_cutoff, 15, 128)
+        segmented = hist_thresh_new(img, obj_color, sat_cutoff, val_cutoff, 5, 60)
         opencv.imshow("Segmented", segmented)
         opencv.imshow("Original", image)
         if opencv.waitKey(10) == 27:
@@ -204,5 +204,5 @@ def main2():
 
 
 if __name__ == '__main__':
-    main2()
+    main()
 
