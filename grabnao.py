@@ -246,7 +246,6 @@ class NAO:
         self.camera.cleanup()
 
 
-
 class GrabNAO:
     def __init__(self, config_file_general, host, port=9559, robot=None):
         self.parser = ConfigParser.ConfigParser()
