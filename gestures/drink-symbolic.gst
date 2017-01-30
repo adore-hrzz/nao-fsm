@@ -10,16 +10,16 @@ object=Cylinder
 [Lefthanded]
 invite    = adorebasicmotions-23e157/Dodji (right)
 introduce = adoregestures-359a39/Ovo je salica
-demo      = adoregestures-359a39/Drink (left)
+demo      = adoregestures-359a39/Drinking (left)
 encourage = adoregestures-359a39/Sada ti (left)
-recourage = 
+recourage = adoregestures-359a39/Pokusajmo ponovo
 bravo     = adorebasicmotions-23e157/Bravo
 
 [Righthanded]
 invite    = adorebasicmotions-23e157/Dodji (right)
 introduce = adoregestures-359a39/Ovo je salica
-demo      = adoregestures-359a39/Drink (right)
+demo      = adoregestures-359a39/Drinking (right)
 encourage = adoregestures-359a39/Sada ti (right)
-recourage = 
+recourage = adoregestures-359a39/Pokusajmo ponovo
 bravo     = adorebasicmotions-23e157/Bravo
 

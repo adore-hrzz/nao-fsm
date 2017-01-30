@@ -12,7 +12,7 @@ invite    = adorebasicmotions-23e157/Dodji (right)
 introduce = adoregestures-359a39/Ovo je zaba
 demo      = adoregestures-359a39/Frog (left)
 encourage = adoregestures-359a39/Sada ti (left)
-recourage = 
+recourage = adoregestures-359a39/Pokusajmo ponovo
 bravo     = adorebasicmotions-23e157/Bravo
 
 [Righthanded]
@@ -20,6 +20,6 @@ invite    = adorebasicmotions-23e157/Dodji (right)
 introduce = adoregestures-359a39/Ovo je zaba
 demo      = adoregestures-359a39/Frog (right)
 encourage = adoregestures-359a39/Sada ti (right)
-recourage = 
+recourage = adoregestures-359a39/Pokusajmo ponovo
 bravo     = adorebasicmotions-23e157/Bravo
 

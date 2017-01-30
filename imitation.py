@@ -30,8 +30,8 @@ class Imitation(Machine):
                         {'trigger': 'success', 'source': 'demo', 'dest': 'release'},
                         {'trigger': 'success', 'source': 'release', 'dest': 'encourage'},
                         {'trigger': 'success', 'source': 'encourage', 'dest': 'recognize'},
-                        {'trigger': 'success', 'source': 'recognize', 'dest': 'bravo', 'unless': 'user_quit'},
-                        {'trigger': 'fail', 'source': 'recognize', 'dest': 'recourage', 'unless': 'user_quit'},
+                        {'trigger': 'success', 'source': 'recognize', 'dest': 'bravo'},
+                        {'trigger': 'fail', 'source': 'recognize', 'dest': 'recourage'},
                         {'trigger': 'success', 'source': 'recourage', 'dest': 'grab', 'unless': 'user_quit'},
                         {'trigger': 'success', 'source': 'bravo', 'dest': 'init',  'unless': 'user_quit'},
                         {'trigger': 'success', 'source': '*', 'dest': 'end'},
@@ -87,6 +87,7 @@ class Imitation(Machine):
         Grab the object.
         """
         print('Grabbing...')
+        self.grabber.init_pose()
         ret_val_calc = self.grabber.calculate_3d_grab_point(self.object_name)
         if ret_val_calc[0] == -1:
             print('Grab point calculation failed')
