@@ -241,6 +241,7 @@ class NAO:
         self.video_recorder.setResolution(2)
         self.video_recorder.setFrameRate(30)
         self.video_recorder.setVideoFormat("MJPG")
+        self.motion.setSmartStiffnessEnabled(False)
 
     def cleanup(self):
         self.camera.cleanup()
@@ -436,7 +437,8 @@ class GrabNAO:
         else:
             hand_name = 'LHand'
             # chain_name = 'LArm'
-        self.robot.motion.setAngles(hand_name, 0.0, 0.3)
+
+        self.robot.motion.setAngles(hand_name, 0.00, 0.3)
         # lift hand
         # current_point = np.asarray(self.robot.motion.getPosition(chain_name, 2, True)[0:3])
         # current_point[2] += 0.05
