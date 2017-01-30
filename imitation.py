@@ -17,7 +17,6 @@ states = ['init','invite','grab','assist','introduce','demo',
           'release','encourage','recognize','recourage', 
           'bravo','end']
 
-pico_subscriber = None
 
 class Imitation(Machine):
 
@@ -74,7 +73,6 @@ class Imitation(Machine):
                                     'assist' : parser.get('Righthanded', 'assist')
                                }
                       }
-        self.host = host
         self.grabber = GrabNAO(objects,host)
 
     def on_enter_invite(self):
@@ -187,11 +185,6 @@ class Imitation(Machine):
         self.grabber.robot.video_recorder.setCameraID(0)
         self.grabber.robot.video_recorder.startRecording('/home/nao/recordings/', time_str)
 
-        # pico_broker = ALBroker("pico_broker", "0.0.0.0", 0, self.host, 9559)
-        #
-        # global pico_subscriber
-        # pico_subscriber = PicoSubscriberModule("pico_subscriber")
-        # pico_subscriber.add_object()
         user_input = raw_input("Tracking the child's gesture. Hit <Enter> to stop.")
         _, path = self.grabber.robot.video_recorder.stopRecording()
         print('Video saved to: %s' % path)
