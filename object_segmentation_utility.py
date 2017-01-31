@@ -194,13 +194,13 @@ def main2():
         if opencv.waitKey(10) == 27:
             break
     opencv.destroyAllWindows()
-    if object_name not in conf_parser.sections():
-        conf_parser.add_section(object_name)
-    conf_parser.set(object_name, 'hue', obj_color)
-    conf_parser.set(object_name, 'sat_cutoff', sat_cutoff)
-    conf_parser.set(object_name, 'val_cutoff', val_cutoff)
-    with open(args.config, 'wb') as configfile:
-        conf_parser.write(configfile)
+    # if object_name not in conf_parser.sections():
+    #     conf_parser.add_section(object_name)
+    # conf_parser.set(object_name, 'hue', obj_color)
+    # conf_parser.set(object_name, 'sat_cutoff', sat_cutoff)
+    # conf_parser.set(object_name, 'val_cutoff', val_cutoff)
+    # with open(args.config, 'wb') as configfile:
+    #     conf_parser.write(configfile)
 
 
 if __name__ == '__main__':
