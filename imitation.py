@@ -81,9 +81,9 @@ class Imitation(Machine):
         """
         print("Inviting...")
         self.grabber.init_pose()
-        bhv = self.behaviors[self.hand][self.state]
-        if bhv:
-            self.grabber.robot.behavior.runBehavior(bhv)        
+        # bhv = self.behaviors[self.hand][self.state]
+        # if bhv:
+        #     self.grabber.robot.behavior.runBehavior(bhv)
         self.success()
 
     def on_enter_grab(self):
@@ -170,7 +170,7 @@ class Imitation(Machine):
         print('Encouraging...')
         bhv = self.behaviors[self.hand][self.state]
         if bhv:
-            self.grabber.robot.behavior.runBehavior(bhv)
+            self.grabber.robot.behavior.post.runBehavior(bhv)
         self.success()
 
     def on_enter_recognize(self):
