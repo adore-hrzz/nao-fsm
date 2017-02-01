@@ -238,7 +238,7 @@ class NAO:
         self.tts = ALProxy('ALTextToSpeech')
         self.camera = NAOImageGetter(host, port)
         self.video_recorder = ALProxy('ALVideoRecorder')
-        self.video_recorder.setResolution(2)
+        self.video_recorder.setResolution(1)
         self.video_recorder.setFrameRate(30)
         self.video_recorder.setVideoFormat("MJPG")
         self.motion.setSmartStiffnessEnabled(False)
@@ -314,7 +314,8 @@ class GrabNAO:
     def grab_object(self, object_name, point, direction, orientation_control=True):
         # TODO: add param in config file
         # if object is more than 35cm from the robot, abort
-        if point[0] > 0.3:
+        if point[0] > 0.35:
+            print(point)
             return -1, None
         if orientation_control:
             motion_mask = 15
