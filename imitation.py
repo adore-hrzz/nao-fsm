@@ -50,6 +50,7 @@ class Imitation(Machine):
 
         self.grab_point = None
         self.direction = None
+        self.demonstration_count = 0
         self.hand = hand
         self.object_name = parser.get('Gesture','object')
         self.gesture = parser.get('Gesture','name')
@@ -152,6 +153,7 @@ class Imitation(Machine):
         bhv = self.behaviors[self.hand][self.state]
         if bhv:
             self.grabber.robot.behavior.runBehavior(bhv)
+        self.demonstration_count += 1
         self.success()
 
     def on_enter_release(self):
@@ -192,7 +194,7 @@ class Imitation(Machine):
             # Empty input (only <Enter> is interpretd as success)
             self.success()
         else:
-            # Any othe input is interpreted as failure
+            # Any other input is interpreted as failure
             self.fail()
 
     def on_enter_recourage(self):
@@ -200,9 +202,12 @@ class Imitation(Machine):
         Re-encourage the person if gesture was not recognized.
         """
         print('Recouraging...')
-        bhv = self.behaviors[self.hand][self.state]
-        if bhv:
-            self.grabber.robot.behavior.runBehavior(bhv)
+        if self.demonstration_count >= 3:
+            self.fail()
+        else:
+            bhv = self.behaviors[self.hand][self.state]
+            if bhv:
+                self.grabber.robot.behavior.runBehavior(bhv)
         self.success()
 
     def on_enter_bravo(self):
