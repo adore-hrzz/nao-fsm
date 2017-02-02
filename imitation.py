@@ -50,6 +50,7 @@ class Imitation(Machine):
 
         self.grab_point = None
         self.direction = None
+        # used to exit after three fails
         self.demonstration_count = 0
         self.hand = hand
         self.object_name = parser.get('Gesture','object')
@@ -202,6 +203,7 @@ class Imitation(Machine):
         Re-encourage the person if gesture was not recognized.
         """
         print('Recouraging...')
+        # TODO: make this a parameter
         if self.demonstration_count >= 3:
             self.fail()
         else:
