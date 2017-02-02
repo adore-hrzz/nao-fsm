@@ -312,9 +312,9 @@ class GrabNAO:
         return 1, [point, direction]
 
     def grab_object(self, object_name, point, direction, orientation_control=True):
-        # TODO: add param in config file
-        # if object is more than 35cm from the robot, abort
-        if point[0] > 0.35:
+        # TODO: make this a parameter
+        # if object is more than 30cm from the robot, abort
+        if point[0] > 0.30:
             print(point)
             return -1, None
         if orientation_control:
