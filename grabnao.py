@@ -322,8 +322,8 @@ class GrabNAO:
         else:
             motion_mask = 7
 
-        safe_up = [0.1, direction * 0.15, 0.41, 0, 0, 0]
-        behavior_pose = [0.05, direction * 0.05, 0.41, 0, 0, 0]
+        safe_up = [0.15, direction * 0.12, 0.38, 0, 0, 0]
+        behavior_pose = [0.05, direction * 0.05, 0.38, 0, 0, 0]
 
         # grabbing parameters
         grab_settings = dict(self.image_processor.parser.items(object_name))
@@ -388,7 +388,7 @@ class GrabNAO:
         self.robot.motion.setAngles(hand_name, 1.0, 0.3)
 
         points_before_grasp = [safe_up, approach_point]
-        times_before_grasp = [2, 4]
+        times_before_grasp = [1.0, 2.5]
 
         print('Safe up %s' % safe_up)
         print('Approach point %s' % approach_point)
@@ -403,7 +403,7 @@ class GrabNAO:
         count = 0
 
         while diff > distance_tolerance_approach:
-            time_interval = diff * 10
+            time_interval = diff * 5
             self.robot.motion.positionInterpolations([chain_name], 2, approach_point, motion_mask, [time_interval], True)
             reached_point = np.asarray(self.robot.motion.getPosition(chain_name, 2, True)[0:3])
             diff = np.linalg.norm(reached_point-goal_point)
@@ -419,7 +419,7 @@ class GrabNAO:
         count = 0
 
         while diff > distance_tolerance_grab:
-            interval = diff * 10
+            interval = diff * 7.5
             self.robot.motion.positionInterpolations([chain_name], 2, grab_point, motion_mask, [interval])
             reached_point = np.asarray(self.robot.motion.getPosition(chain_name, 2, True)[0:3])
             diff = np.linalg.norm(reached_point-goal_point)
@@ -430,7 +430,7 @@ class GrabNAO:
                 return -1, None
         print('Distance to grab point %s' % diff)
         self.robot.motion.setAngles(hand_name, 0.0, 0.3)
-        self.robot.motion.positionInterpolations([chain_name], 2, lift_point, motion_mask, 1)
+        self.robot.motion.positionInterpolations([chain_name], 2, lift_point, motion_mask, 0.5)
         self.robot.motion.positionInterpolations(["Torso"], 2, behavior_pose, motion_mask, 1)
         self.robot.motion.wbEnableEffectorControl(chain_name, False)
         return 1, grab_point
@@ -503,7 +503,7 @@ class GrabNAO:
         else:
             hand_name = 'LHand'
             chain_name = 'LArm'
-        return_point[0] += 0.02
+        return_point[0] += 0.06
         return_point[2] += 0.03
 
         return_point_1 = return_point[:]
