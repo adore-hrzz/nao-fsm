@@ -187,7 +187,7 @@ class Imitation(Machine):
 
         self.grabber.robot.video_recorder.setCameraID(0)
         self.grabber.robot.video_recorder.startRecording('/home/nao/recordings/', time_str)
-
+        # TODO: incorporate tracking and gesture recognition
         user_input = raw_input("Tracking the child's gesture. Hit <Enter> to stop.")
         _, path = self.grabber.robot.video_recorder.stopRecording()
         print('Video saved to: %s' % path)
