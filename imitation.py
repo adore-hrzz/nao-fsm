@@ -25,17 +25,17 @@ class Imitation(Machine):
         # Matching transitions are searched for sequentially
         # Therefore, the wildcard transition '*' has to be defined last
         transitions = [ {'trigger': 'start', 'source': 'init', 'dest': 'invite', 'unless': 'user_quit'},
-                        {'trigger': 'success', 'source': 'invite', 'dest': 'grab', 'unless': 'user_quit'},
-                        {'trigger': 'success', 'source': 'grab', 'dest': 'introduce', 'unless': 'user_quit'},
+                        {'trigger': 'success', 'source': 'invite', 'dest': 'grab'}, #'unless': 'user_quit'},
+                        {'trigger': 'success', 'source': 'grab', 'dest': 'introduce'}, #'unless': 'user_quit'},
                         {'trigger': 'fail', 'source': 'grab', 'dest': 'assist'},
-                        {'trigger': 'success', 'source': 'assist', 'dest': 'introduce', 'unless': 'user_quit'},
+                        {'trigger': 'success', 'source': 'assist', 'dest': 'introduce'}, # 'unless': 'user_quit'},
                         {'trigger': 'success', 'source': 'introduce', 'dest': 'demo'},
                         {'trigger': 'success', 'source': 'demo', 'dest': 'release'},
                         {'trigger': 'success', 'source': 'release', 'dest': 'encourage'},
                         {'trigger': 'success', 'source': 'encourage', 'dest': 'recognize'},
                         {'trigger': 'success', 'source': 'recognize', 'dest': 'bravo'},
                         {'trigger': 'fail', 'source': 'recognize', 'dest': 'recourage'},
-                        {'trigger': 'success', 'source': 'recourage', 'dest': 'grab', 'unless': 'user_quit'},
+                        {'trigger': 'success', 'source': 'recourage', 'dest': 'grab'},# 'unless': 'user_quit'},
                         {'trigger': 'success', 'source': 'bravo', 'dest': 'init',  'unless': 'user_quit'},
                         {'trigger': 'success', 'source': '*', 'dest': 'end'},
                         {'trigger': 'fail', 'source': '*', 'dest': 'end'}
