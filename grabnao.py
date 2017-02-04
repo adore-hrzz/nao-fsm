@@ -453,9 +453,6 @@ class GrabNAO:
     def grab_assisted(self, direction):
         # TODO: change to use the hand based on direction
         hand_name = ''
-        val1 = 0
-        val2 = 0
-        val3 = 0
         count = 0
         # TODO: debug tactile sensor 
         while True:
