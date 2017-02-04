@@ -36,9 +36,9 @@ class ObjectTrackerModule(ALModule):
 
     def unload(self):
         self.gestureProxy.stopTracker()
-        for i in range(0, len(self.exists)):
+        for name in self.kindNames:
             self.gestureProxy.removeObjectKind(0)
-            self.gestureProxy.removeEvent(self.kindNames[i])
+            self.gestureProxy.removeEvent(name)
 
 
 class PicoSubscriberModule(ALModule):

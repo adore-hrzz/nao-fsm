@@ -79,7 +79,8 @@ class Imitation(Machine):
         self.grabber = GrabNAO(objects,host)
         global object_tracker
         object_tracker = ObjectTrackerModule('object_tracker', self.grabber.robot)
-        data_set = "/home'nao/naoqi/modules/NaoObjectGestureDatasets/"+self.object_name
+        data_set = "/home/nao/naoqi/modules/NaoObjectGestureDatasets/"+self.object_name
+        print(data_set)
         object_tracker.load(data_set, self.object_name)
 
     def on_enter_invite(self):
@@ -262,8 +263,6 @@ class Imitation(Machine):
         """
         cleaning up
         """
-        global object_tracker
-        object_tracker.unload()
         self.grabber.cleanup()
 
 if __name__ == '__main__':
