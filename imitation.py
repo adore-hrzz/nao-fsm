@@ -6,6 +6,7 @@ from grabnao import GrabNAO
 # from gesture_recognition import PicoSubscriberModule
 from gesture_recognition import ObjectTrackerModule
 import time
+import pickle
 # from naoqi import ALBroker
 # from transitions.extensions import GraphMachine as Machine
 
@@ -199,7 +200,8 @@ class Imitation(Machine):
         user_input = raw_input("Tracking the child's gesture. Hit <Enter> to stop.")
         _, path = self.grabber.robot.video_recorder.stopRecording()
         print('Video saved to: %s' % path)
-        print(object_tracker.data)
+        gest_name = './tracking_data/'+time.strftime("%Y%m%d-%H%M%S")+'-%s-%s.pts' % (self.object_name, self.gesture)
+        pickle.dump(object_tracker.data, open(gest_name, 'wb'))
         object_tracker.stop()
         if user_input == '':
             # Empty input (only <Enter> is interpretd as success)
