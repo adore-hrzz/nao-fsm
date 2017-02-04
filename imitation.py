@@ -78,7 +78,7 @@ class Imitation(Machine):
                       }
         self.grabber = GrabNAO(objects,host)
         global object_tracker
-        object_tracker = ObjectTrackerModule('object_tracker')
+        object_tracker = ObjectTrackerModule('object_tracker', self.grabber.robot)
         data_set = "/home'nao/naoqi/modules/NaoObjectGestureDatasets/"+self.object_name
         object_tracker.load(data_set, self.object_name)
 
