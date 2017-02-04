@@ -3,12 +3,13 @@
 
 from transitions import Machine
 from grabnao import GrabNAO
-from gesture_recognition import PicoSubscriberModule
+# from gesture_recognition import PicoSubscriberModule
+from gesture_recognition import ObjectTrackerModule
 import time
-from naoqi import ALBroker
+# from naoqi import ALBroker
 # from transitions.extensions import GraphMachine as Machine
 
-from naoqi import ALProxy
+# from naoqi import ALProxy
 
 import argparse
 from ConfigParser import ConfigParser
@@ -17,6 +18,7 @@ states = ['init','invite','grab','assist','introduce','demo',
           'release','encourage','recognize','recourage', 
           'bravo','end']
 
+object_tracker = None
 
 class Imitation(Machine):
 
@@ -44,7 +46,6 @@ class Imitation(Machine):
         Machine.__init__(self,states=states,transitions=transitions,initial=initial)
 
         self.interactive = interactive
-        
         parser = ConfigParser()
         parser.readfp(open(gesture))
 
@@ -76,6 +77,10 @@ class Imitation(Machine):
                                }
                       }
         self.grabber = GrabNAO(objects,host)
+        global object_tracker
+        object_tracker = ObjectTrackerModule('object_tracker')
+        data_set = "/home'nao/naoqi/modules/NaoObjectGestureDatasets/"+self.object_name
+        object_tracker.load(data_set, self.object_name)
 
     def on_enter_invite(self):
         """
@@ -187,10 +192,14 @@ class Imitation(Machine):
 
         self.grabber.robot.video_recorder.setCameraID(0)
         self.grabber.robot.video_recorder.startRecording('/home/nao/recordings/', time_str)
+        global object_tracker
+        object_tracker.start(0)
         # TODO: incorporate tracking and gesture recognition
         user_input = raw_input("Tracking the child's gesture. Hit <Enter> to stop.")
         _, path = self.grabber.robot.video_recorder.stopRecording()
         print('Video saved to: %s' % path)
+        print(object_tracker.data)
+        object_tracker.stop()
         if user_input == '':
             # Empty input (only <Enter> is interpretd as success)
             self.success()
@@ -227,6 +236,8 @@ class Imitation(Machine):
         We're done.
         """
         print('Bye-bye!')
+        global object_tracker
+        object_tracker.unload()
         self.grabber.cleanup()
 
     def user_quit(self):
@@ -251,6 +262,8 @@ class Imitation(Machine):
         """
         cleaning up
         """
+        global object_tracker
+        object_tracker.unload()
         self.grabber.cleanup()
 
 if __name__ == '__main__':

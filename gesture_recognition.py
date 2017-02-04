@@ -4,6 +4,43 @@ from naoqi import ALProxy, ALModule
 import vision_definitions
 
 
+class ObjectTrackerModule(ALModule):
+    def __init__(self, name, robot):
+        ALModule.__init__(self, name)
+        self.gestureProxy = ALProxy("NAOObjectGesture")
+        self.robot = robot
+        self.kindNames = []
+        self.count = 0
+        self.data = []
+
+    def start(self, camId, focus=False):
+        self.gestureProxy.startTracker(15, camId)
+        if focus:
+            self.motionProxy.setStiffnesses("Head", 1.0)
+            self.gestureProxy.focusObject(-1)
+
+    def stop(self):
+        self.gestureProxy.stopTracker()
+        self.gestureProxy.stopFocus()
+
+    def load(self, path, name):
+        self.gestureProxy.loadDataset(path)
+        self.kindNames.append(name)
+        self.gestureProxy.trackObject(name, -1)
+        self.robot.memory.subscribeToEvent(name, "object_tracker", name, "on_obj_get")
+
+    def on_obj_get(self, key, value, message):
+        if value[1]:
+            self.data.append(value[3])
+        self.count += 1
+
+    def unload(self):
+        self.gestureProxy.stopTracker()
+        for i in range(0, len(self.exists)):
+            self.gestureProxy.removeObjectKind(0)
+            self.gestureProxy.removeEvent(self.kindNames[i])
+
+
 class PicoSubscriberModule(ALModule):
     def __init__(self, name, camera=vision_definitions.kTopCamera, resolution=vision_definitions.kVGA, fps=5):
         ALModule.__init__(self, name)
