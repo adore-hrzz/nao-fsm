@@ -202,6 +202,7 @@ class Imitation(Machine):
         print('Video saved to: %s' % path)
         gest_name = './tracking_data/'+time.strftime("%Y%m%d-%H%M%S")+'-%s-%s.pts' % (self.object_name, self.gesture)
         pickle.dump(object_tracker.data, open(gest_name, 'wb'))
+        print('Got trajectory %s points long' % len(object_tracker.data))
         object_tracker.stop()
         if user_input == '':
             # Empty input (only <Enter> is interpretd as success)
