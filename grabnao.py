@@ -520,7 +520,9 @@ class GrabNAO:
         self.robot.motion.wbEnableEffectorControl(chain_name, False)
         self.robot.motion.setAngles(hand_name, 1.0, 0.3)
         return_point_1[2] += 0.05
+        return_point_1[1] += direction*0.04
         return_point_2[2] += 0.05
+        return_point_2[1] += direction*0.04
         points_list_2 = [return_point_1, return_point_1, return_point_2, return_point_2]
         times_list_2 = [1.0, 1.5, 2.5, 3.0]
         self.robot.motion.wbEnableEffectorControl(chain_name, True)
