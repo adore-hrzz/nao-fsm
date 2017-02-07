@@ -16,7 +16,7 @@ class ObjectTrackerModule(ALModule):
     def start(self, camId, focus=False):
         self.gestureProxy.startTracker(15, camId)
         if focus:
-            self.motionProxy.setStiffnesses("Head", 1.0)
+            self.robot.motion.setStiffnesses("Head", 1.0)
             self.gestureProxy.focusObject(-1)
 
     def stop(self):
@@ -28,6 +28,9 @@ class ObjectTrackerModule(ALModule):
         self.kindNames.append(name)
         self.gestureProxy.trackObject(name, -1)
         self.robot.memory.subscribeToEvent(name, "object_tracker", name, "on_obj_get")
+
+    def clear(self):
+        self.data = []
 
     def on_obj_get(self, key, value, message):
         if value[1]:

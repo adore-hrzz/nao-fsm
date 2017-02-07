@@ -188,8 +188,8 @@ class Imitation(Machine):
         Run gesture recognition.
         """
         print('Recognizing...')
-
-        time_str = time.strftime("%Y%m%d-%H%M%S")+'-%s-%s.avi' % (self.object_name, self.gesture)
+        curr_time = time.strftime("%Y%m%d-%H%M%S")
+        time_str = curr_time+'-%s-%s.avi' % (self.object_name, self.gesture)
         self.grabber.robot.motion.setAngles('HeadPitch', -0.1, 0.5)
 
         self.grabber.robot.video_recorder.setCameraID(0)
@@ -200,7 +200,7 @@ class Imitation(Machine):
         user_input = raw_input("Tracking the child's gesture. Hit <Enter> to stop.")
         _, path = self.grabber.robot.video_recorder.stopRecording()
         print('Video saved to: %s' % path)
-        gest_name = './tracking_data/'+time.strftime("%Y%m%d-%H%M%S")+'-%s-%s.pts' % (self.object_name, self.gesture)
+        gest_name = './tracking_data/'+curr_time+'-%s-%s.pts' % (self.object_name, self.gesture)
         pickle.dump(object_tracker.data, open(gest_name, 'wb'))
         print('Got trajectory %s points long' % len(object_tracker.data))
         object_tracker.stop()
