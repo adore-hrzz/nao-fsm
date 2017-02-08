@@ -429,7 +429,8 @@ class GrabNAO:
                 print('Distance to grab point %s' % diff)
                 return -1, None
         print('Distance to grab point %s' % diff)
-        self.robot.motion.setAngles(hand_name, 0.0, 0.3)
+        self.robot.motion.setAngles(hand_name, 0.0, 0.8)
+
         self.robot.motion.positionInterpolations([chain_name], 2, lift_point, motion_mask, 0.5)
         self.robot.motion.positionInterpolations(["Torso"], 2, behavior_pose, motion_mask, 1)
         self.robot.motion.wbEnableEffectorControl(chain_name, False)
@@ -478,6 +479,15 @@ class GrabNAO:
         # TODO: return flag and return point
 
     def put_object_back(self, return_point, object_name, direction):
+        if object_name == 'Frog':
+            if direction == -1:
+                bhv = 'adoregestures-359a39/Return (Frog, right)'
+            else:
+                bhv = 'adoregestures-359a39/Return (Frog, left)'
+            self.robot.behavior.runBehavior(bhv)
+
+            return
+
         if not return_point:
             print('There is no return point')
             if direction == -1:
@@ -518,16 +528,23 @@ class GrabNAO:
         self.robot.motion.wbEnableEffectorControl(chain_name, True)
         self.robot.motion.positionInterpolations([chain_name], 2, points_list, 15, times_list)
         self.robot.motion.wbEnableEffectorControl(chain_name, False)
-        self.robot.motion.setAngles(hand_name, 1.0, 0.3)
-        return_point_1[2] += 0.05
-        return_point_1[1] += direction*0.04
-        return_point_2[2] += 0.05
-        return_point_2[1] += direction*0.04
-        points_list_2 = [return_point_1, return_point_1, return_point_2, return_point_2]
-        times_list_2 = [1.0, 1.5, 2.5, 3.0]
-        self.robot.motion.wbEnableEffectorControl(chain_name, True)
-        self.robot.motion.positionInterpolations([chain_name], 2, points_list_2, 15, times_list_2)
-        self.robot.motion.wbEnableEffectorControl(chain_name, False)
+        self.robot.motion.setAngles(hand_name, 1.0, 0.7)
+        if direction == -1:
+            self.robot.motion.setAngles('RShoulderRoll', -30*np.pi/180, 0.1)
+        else:
+            self.robot.motion.setAngles('LShoulderRoll', 30*np.pi/180, 0.1)
+        time.sleep(2)
+        return
+
+        # return_point_1[2] += 0.02
+        # return_point_1[1] += direction*0.05
+        # return_point_2[2] += 0.02
+        # return_point_2[1] += direction*0.05
+        # points_list_2 = [return_point_1, return_point_1, return_point_2, return_point_2]
+        # times_list_2 = [1.0, 1.5, 2.5, 3.0]
+        # self.robot.motion.wbEnableEffectorControl(chain_name, True)
+        # self.robot.motion.positionInterpolations([chain_name], 2, points_list_2, 15, times_list_2)
+        # self.robot.motion.wbEnableEffectorControl(chain_name, False)
 
     def cleanup(self):
         print('Cleanup grabnao')
