@@ -209,7 +209,7 @@ class Imitation(Machine):
         else:
             bhv = self.behaviors[self.hand][self.state]
             if bhv:
-                self.grabber.robot.behavior.runBehavior(bhv)
+                self.grabber.robot.behavior.post.runBehavior(bhv)
         self.success()
 
     def on_enter_bravo(self):
