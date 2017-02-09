@@ -1,5 +1,6 @@
 from vision_definitions import kVGA, kBGRColorSpace, kCameraAutoWhiteBalanceID
 from naoqi import ALProxy, ALModule, ALBroker
+import motion
 import NaoImageProcessing
 import ConfigParser
 import numpy as np
@@ -314,15 +315,15 @@ class GrabNAO:
     def grab_object(self, object_name, point, direction, orientation_control=True):
         # TODO: make this a parameter
         # if object is more than 30cm from the robot, abort
-        if point[0] > 0.30:
+        if point[0] > 0.32:
             print(point)
             return -1, None
         if orientation_control:
-            motion_mask = 15
+            motion_mask = motion.AXIS_MASK_ALL
         else:
-            motion_mask = 7
+            motion_mask = motion.AXIS_MASK_VEL
 
-        safe_up = [0.15, direction * 0.13, 0.38, 0, 0, 0]
+        safe_up = [0.15, direction * 0.13, 0.39, 0, 0, 0]
         behavior_pose = [0.05, direction * 0.05, 0.38, 0, 0, 0]
 
         # grabbing parameters
