@@ -389,7 +389,7 @@ class GrabNAO:
         self.robot.motion.setAngles(hand_name, 1.0, 0.3)
 
         points_before_grasp = [safe_up, approach_point]
-        times_before_grasp = [1.1, 2.5]
+        times_before_grasp = [1.5, 2.5]
 
         print('Safe up %s' % safe_up)
         print('Approach point %s' % approach_point)
@@ -404,7 +404,7 @@ class GrabNAO:
         count = 0
 
         while diff > distance_tolerance_approach:
-            time_interval = diff * 7
+            time_interval = diff * 15
             self.robot.motion.positionInterpolations([chain_name], 2, approach_point, motion_mask, [time_interval], True)
             reached_point = np.asarray(self.robot.motion.getPosition(chain_name, 2, True)[0:3])
             diff = np.linalg.norm(reached_point-goal_point)
@@ -420,7 +420,7 @@ class GrabNAO:
         count = 0
 
         while diff > distance_tolerance_grab:
-            interval = diff * 10
+            interval = diff * 25
             self.robot.motion.positionInterpolations([chain_name], 2, grab_point, motion_mask, [interval])
             reached_point = np.asarray(self.robot.motion.getPosition(chain_name, 2, True)[0:3])
             diff = np.linalg.norm(reached_point-goal_point)
@@ -430,7 +430,7 @@ class GrabNAO:
                 print('Distance to grab point %s' % diff)
                 return -1, None
         print('Distance to grab point %s' % diff)
-        self.robot.motion.setAngles(hand_name, 0.0, 0.8)
+        self.robot.motion.setAngles(hand_name, 0.0, 0.6)
 
         self.robot.motion.positionInterpolations([chain_name], 2, lift_point, motion_mask, 0.5)
         self.robot.motion.positionInterpolations(["Torso"], 2, behavior_pose, motion_mask, 1)

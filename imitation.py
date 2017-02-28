@@ -183,7 +183,7 @@ class Imitation(Machine):
         print('Recognizing...')
 
         time_str = time.strftime("%Y%m%d-%H%M%S")+'-%s-%s.avi' % (self.object_name, self.gesture)
-        self.grabber.robot.motion.setAngles('HeadPitch', -0.1, 0.5)
+        self.grabber.robot.motion.setAngles('HeadPitch', -0.1, 0.3)
 
         self.grabber.robot.video_recorder.setCameraID(0)
         self.grabber.robot.video_recorder.startRecording('/home/nao/recordings/', time_str)
@@ -265,9 +265,14 @@ if __name__ == '__main__':
 
     im = Imitation(args.gesture, args.hostname, args.objects, args.initial_state, args.hand)
     #im.graph.draw('state_diagram.png',prog='dot')
-    if args.initial_state == 'init':
-        im.start()
-    else:
-        im.success()
+    try:
+        if args.initial_state == 'init':
+            im.start()
+        else:
+            im.success()
 
-    im.cleanup()
+        im.cleanup()
+
+    except KeyboardInterrupt:
+        im.cleanup()
+        raise
