@@ -163,7 +163,7 @@ class NAOImageGetter:
         # TODO: check what this does to frog detection
         self.video_proxy.setCameraParameter(self.video, kCameraAutoExpositionID, 0)
         self.video_proxy.setCameraParameter(self.video, kCameraExposureID, 100)
-        self.video_proxy.setCameraParameter(self.video, kCameraGainID, 60)
+        self.video_proxy.setCameraParameter(self.video, kCameraGainID, 63)
 
 
     def get_image(self):
@@ -409,7 +409,7 @@ class GrabNAO:
         count = 0
 
         while diff > distance_tolerance_approach:
-            time_interval = diff * 15
+            time_interval = diff * 10
             self.robot.motion.positionInterpolations([chain_name], 2, approach_point, motion_mask, [time_interval], True)
             reached_point = np.asarray(self.robot.motion.getPosition(chain_name, 2, True)[0:3])
             diff = np.linalg.norm(reached_point-goal_point)
@@ -425,7 +425,7 @@ class GrabNAO:
         count = 0
 
         while diff > distance_tolerance_grab:
-            interval = diff * 25
+            interval = diff * 10
             self.robot.motion.positionInterpolations([chain_name], 2, grab_point, motion_mask, [interval])
             reached_point = np.asarray(self.robot.motion.getPosition(chain_name, 2, True)[0:3])
             diff = np.linalg.norm(reached_point-goal_point)
@@ -435,7 +435,8 @@ class GrabNAO:
                 print('Distance to grab point %s' % diff)
                 return -1, None
         print('Distance to grab point %s' % diff)
-        self.robot.motion.setAngles(hand_name, 0.0, 0.6)
+        self.robot.motion.setAngles(hand_name, 0.0, 0.7)
+        time.sleep(1.0)
 
         self.robot.motion.positionInterpolations([chain_name], 2, lift_point, motion_mask, 0.5)
         self.robot.motion.positionInterpolations(["Torso"], 2, behavior_pose, motion_mask, 1)
