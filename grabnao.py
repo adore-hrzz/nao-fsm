@@ -425,7 +425,7 @@ class GrabNAO:
         count = 0
 
         while diff > distance_tolerance_grab:
-            interval = diff * 10
+            interval = diff * 15
             self.robot.motion.positionInterpolations([chain_name], 2, grab_point, motion_mask, [interval])
             reached_point = np.asarray(self.robot.motion.getPosition(chain_name, 2, True)[0:3])
             diff = np.linalg.norm(reached_point-goal_point)
