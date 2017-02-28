@@ -1,4 +1,4 @@
-from vision_definitions import kVGA, kBGRColorSpace, kCameraAutoWhiteBalanceID
+from vision_definitions import *  # kVGA, kBGRColorSpace, kCameraAutoWhiteBalanceID
 from naoqi import ALProxy, ALModule, ALBroker
 import motion
 import NaoImageProcessing
@@ -159,7 +159,12 @@ class NAOImageGetter:
         #    self.video_proxy.unsubscribe(subscriber)
         # print(self.video_proxy.getSubscribers())
         self.video = self.video_proxy.subscribeCamera('NAOImgGet', camera, resolution, color_space, 30)
-        self.video_proxy.setCameraParameter(self.video, kCameraAutoWhiteBalanceID, 0)
+        # self.video_proxy.setCameraParameter(self.video, kCameraAutoWhiteBalanceID, 0)
+        # TODO: check what this does to frog detection
+        self.video_proxy.setCameraParameter(self.video, kCameraAutoExpositionID, 0)
+        self.video_proxy.setCameraParameter(self.video, kCameraExposureID, 100)
+        self.video_proxy.setCameraParameter(self.video, kCameraGainID, 60)
+
 
     def get_image(self):
         al_image = self.video_proxy.getImageRemote(self.video)

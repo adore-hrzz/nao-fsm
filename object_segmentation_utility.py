@@ -43,7 +43,7 @@ def trackbars3():
     opencv.createTrackbar('ValCutoff', 'Trackbars', 0, 256, nothing)
 
 
-def segmentation_hsv(img_getter, conf_parser, object_name, args):
+def segmentation_hsv(img_getter):  #, conf_parser, object_name, args):
     trackbars()
     hue_min = 0
     hue_max = 255
@@ -69,17 +69,17 @@ def segmentation_hsv(img_getter, conf_parser, object_name, args):
             break
     opencv.destroyAllWindows()
 
-    if object_name not in conf_parser.sections():
-        conf_parser.add_section(object_name)
-
-    conf_parser.set(object_name, 'hmin', hue_min)
-    conf_parser.set(object_name, 'hmax', hue_max)
-    conf_parser.set(object_name, 'smin', sat_min)
-    conf_parser.set(object_name, 'smax', sat_max)
-    conf_parser.set(object_name, 'vmin', val_min)
-    conf_parser.set(object_name, 'vmax', val_max)
-    with open(args.config, 'wb') as configfile:
-        conf_parser.write(configfile)
+    # if object_name not in conf_parser.sections():
+    #     conf_parser.add_section(object_name)
+    #
+    # conf_parser.set(object_name, 'hmin', hue_min)
+    # conf_parser.set(object_name, 'hmax', hue_max)
+    # conf_parser.set(object_name, 'smin', sat_min)
+    # conf_parser.set(object_name, 'smax', sat_max)
+    # conf_parser.set(object_name, 'vmin', val_min)
+    # conf_parser.set(object_name, 'vmax', val_max)
+    # with open(args.config, 'wb') as configfile:
+    #     conf_parser.write(configfile)
 
     return image, segmented
 
@@ -105,74 +105,65 @@ def segmentation_hue(img_getter, conf_parser, object_name, args):
 
 def main():
     arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument("config")
+    arg_parser.add_argument("host")
     args = arg_parser.parse_args()
-    conf_parser = ConfigParser.ConfigParser()
-    conf_parser.read(args.config)
 
-    ip = conf_parser.get('Settings', 'IP')
-    port = conf_parser.getint('Settings', 'PORT')
-    object_name = conf_parser.get('Settings', 'object')
 
     opencv.namedWindow("Segmented")
-    img_getter = NAOImageGetter(ip, port, camera=1)
-    motion_proxy = ALProxy('ALMotion', ip, port)
-    posture_proxy = ALProxy('ALRobotPosture', ip, port)
+    img_getter = NAOImageGetter(args.host, 9559, camera=1)
+    motion_proxy = ALProxy('ALMotion',args.host, 9559)
+    posture_proxy = ALProxy('ALRobotPosture', args.host, 9559)
     posture_proxy.goToPosture("StandInit", 0.5)
 
-    segmentation_type = conf_parser.getint('Settings', 'segmentation_type')
+    segmentation_type = 1
 
     if segmentation_type == 0:
-        image, binary_image = segmentation_hue(img_getter, conf_parser, object_name, args)
+        pass
+        # image, binary_image = segmentation_hue(img_getter, conf_parser, object_name, args)
     else:
-        image, binary_image = segmentation_hsv(img_getter, conf_parser, object_name, args)
+        image, binary_image = segmentation_hsv(img_getter)  #, conf_parser, object_name, args)
 
-    if not os.path.exists(object_name):
-        os.makedirs(object_name)
-        os.makedirs(object_name+'/Dataset')
-        os.makedirs(object_name+'/GroundTruth')
-    opencv.imwrite(object_name + '/Dataset/object.jpg', image)
-    opencv.imwrite(object_name + '/GroundTruth/object.png', binary_image)
+    # if not os.path.exists(object_name):
+    #     os.makedirs(object_name)
+    #     os.makedirs(object_name+'/Dataset')
+    #     os.makedirs(object_name+'/GroundTruth')
+    # opencv.imwrite(object_name + '/Dataset/object.jpg', image)
+    # opencv.imwrite(object_name + '/GroundTruth/object.png', binary_image)
 
-    img_getter = NAOImageGetter(ip, port, camera=0)
-
-    motion_proxy.setAngles('HeadYaw', -1, 0.5)
-    time.sleep(0.5)
-    image = img_getter.get_image()
-    opencv.imwrite(object_name + '/Dataset/background0.jpg', image)
-    opencv.imwrite(object_name + '/GroundTruth/background0.png', binary_image*0.0)
-
-    motion_proxy.setAngles('HeadYaw',0,0.5)
-    time.sleep(0.5)
-    image = img_getter.get_image()
-    opencv.imwrite(object_name + '/Dataset/background1.jpg', image)
-    opencv.imwrite(object_name + '/GroundTruth/background1.png', binary_image*0.0)
-
-    motion_proxy.setAngles('HeadYaw',1,0.5)
-    time.sleep(0.5)
-    image = img_getter.get_image()
-    opencv.imwrite(object_name + '/Dataset/background2.jpg', image)
-    opencv.imwrite(object_name + '/GroundTruth/background2.png', binary_image*0.0)
-
-    motion_proxy.setAngles('HeadYaw', 0, 0.5)
-    time.sleep(0.5)
+    # img_getter = NAOImageGetter(ip, port, camera=0)
+    #
+    # motion_proxy.setAngles('HeadYaw', -1, 0.5)
+    # time.sleep(0.5)
+    # image = img_getter.get_image()
+    # opencv.imwrite(object_name + '/Dataset/background0.jpg', image)
+    # opencv.imwrite(object_name + '/GroundTruth/background0.png', binary_image*0.0)
+    #
+    # motion_proxy.setAngles('HeadYaw',0,0.5)
+    # time.sleep(0.5)
+    # image = img_getter.get_image()
+    # opencv.imwrite(object_name + '/Dataset/background1.jpg', image)
+    # opencv.imwrite(object_name + '/GroundTruth/background1.png', binary_image*0.0)
+    #
+    # motion_proxy.setAngles('HeadYaw',1,0.5)
+    # time.sleep(0.5)
+    # image = img_getter.get_image()
+    # opencv.imwrite(object_name + '/Dataset/background2.jpg', image)
+    # opencv.imwrite(object_name + '/GroundTruth/background2.png', binary_image*0.0)
+    #
+    # motion_proxy.setAngles('HeadYaw', 0, 0.5)
+    # time.sleep(0.5)
 
 
 def main2():
     arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument("config")
+    arg_parser.add_argument("host")
     args = arg_parser.parse_args()
-    conf_parser = ConfigParser.ConfigParser()
-    conf_parser.read(args.config)
 
-    ip = conf_parser.get('Settings', 'IP')
-    port = conf_parser.getint('Settings', 'PORT')
-    object_name = conf_parser.get('Settings', 'object')
 
     opencv.namedWindow("Segmented")
-    img_getter = NAOImageGetter(ip, port, camera=1)
-    motion_proxy = ALProxy('ALMotion', ip, port)
-    posture_proxy = ALProxy('ALRobotPosture', ip, port)
+    img_getter = NAOImageGetter(args.host, 9559, camera=1)
+    motion_proxy = ALProxy('ALMotion',args.host, 9559)
+    posture_proxy = ALProxy('ALRobotPosture', args.host, 9559)
     posture_proxy.goToPosture("StandInit", 0.5)
     trackbars3()
     obj_color = 0.0
